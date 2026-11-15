@@ -1021,8 +1021,11 @@ export function ListDetail({
         tone: "error",
         text: `${failed.error} « ${name} » reste en brouillon.`,
       });
-    } else
+    } else {
+      // A refresh that left before the publish may have brought it back as a draft.
+      setStatus([item.id], "published", changes);
       toast({ text: `« ${name} » est sur la table : la famille peut le voir.` });
+    }
     setTimeout(() => setFresh((f) => f.filter((x) => x !== item.id)), 1600);
   }
 
@@ -1052,6 +1055,14 @@ export function ListDetail({
         batch.map(({ item, changes }) => send(item, changes)),
       );
       const failed = results.filter((r) => r !== null);
+      const done = batch.filter((_, i) => results[i] === null);
+      mutate((d) => ({
+        ...d,
+        items: d.items.map((i) => {
+          const b = done.find((x) => x.item.id === i.id);
+          return b ? { ...i, ...b.changes, status: "published" } : i;
+        }),
+      }));
       if (failed.length) {
         rollback(failed);
         toast({

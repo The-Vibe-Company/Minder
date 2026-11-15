@@ -1,3 +1,4 @@
+import { canCompleteSession } from "@/lib/navigation-guard";
 import { cookies } from "next/headers";
 import { joinToken, joinCookieOptions } from "@/lib/invitations";
 import { NextResponse } from "next/server";
@@ -31,6 +32,9 @@ export async function GET(request: Request) {
         type: type as EmailOtpType,
       }));
     else if (url.searchParams.get("session") === "1") {
+      if (!canCompleteSession(request)) {
+        return NextResponse.redirect(new URL(next, url.origin));
+      }
       const result = await db.auth.getUser();
       error = result.error ?? (result.data.user ? null : new Error("not authenticated"));
     } else

@@ -5,6 +5,7 @@ vi.mock("next/headers", () => ({ cookies: async () => ({ get: mocks.cookie }) })
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { exchangeCodeForSession: mocks.exchange, getUser: mocks.getUser }, rpc: mocks.rpc }),
 }));
+vi.mock("@/lib/navigation-guard", () => import("./navigation-guard"));
 vi.mock("@/lib/invitations", () => import("./invitations"));
 vi.mock("@/lib/api", () => import("./api"));
 import { GET } from "../app/auth/callback/route";
@@ -46,13 +47,43 @@ it("hands implicit fragments to browser completion without losing next", async (
 });
 it("browser completion must have a server-verified session", async () => {
   mocks.getUser.mockResolvedValue({ data: { user: null }, error: null });
-  const response = await GET(new Request("https://minder.example/auth/callback?session=1"));
+  const response = await GET(new Request("https://minder.example/auth/callback?session=1", { headers: { "sec-fetch-site": "same-origin" } }));
   expect(response.headers.get("location")).toContain("/login?error=invalid_link");
   expect(mocks.rpc).not.toHaveBeenCalled();
 });
 it("verified browser completion claims email invites", async () => {
   mocks.getUser.mockResolvedValue({ data: { user: { id: "user" } }, error: null });
-  const response = await GET(new Request("https://minder.example/auth/callback?session=1&next=/lists/id"));
+  const response = await GET(new Request("https://minder.example/auth/callback?session=1&next=/lists/id", { headers: { "sec-fetch-site": "same-origin" } }));
   expect(response.headers.get("location")).toBe("https://minder.example/lists/id");
   expect(mocks.rpc).toHaveBeenCalledWith("claim_email_invites");
+});
+
+it.each([
+  { "sec-fetch-site": "cross-site" },
+  { "sec-fetch-site": "none" },
+  {},
+  { "sec-fetch-site": "same-origin", purpose: "prefetch" },
+  { "sec-fetch-site": "same-origin", "sec-purpose": "prefetch;prerender" },
+  { "sec-fetch-site": "same-origin", "next-router-prefetch": "1" },
+  { "sec-fetch-site": "same-origin", rsc: "1" },
+  { "sec-fetch-site": "same-origin", "sec-fetch-dest": "empty" },
+] as Record<string, string>[])("session=1 bypasses all mutations for unsafe navigation %j", async headers => {
+  const response = await GET(new Request(`https://minder.example/auth/callback?session=1&next=/invite/${token}`, { headers }));
+  expect(response.headers.get("location")).toBe(`https://minder.example/invite/${token}`);
+  expect(mocks.rpc).not.toHaveBeenCalled();
+  expect(mocks.getUser).not.toHaveBeenCalled();
+});
+it("same-origin document session completion joins", async () => {
+  mocks.getUser.mockResolvedValue({ data: { user: { id: "user" } }, error: null });
+  await GET(new Request(`https://minder.example/auth/callback?session=1&next=/invite/${token}`, {
+    headers: { "sec-fetch-site": "same-origin", "sec-fetch-dest": "document" },
+  }));
+  expect(mocks.rpc).toHaveBeenCalledWith("accept_invite", { p_token: token });
+});
+it("HEAD session completion never claims or joins", async () => {
+  await GET(new Request("https://minder.example/auth/callback?session=1", {
+    method: "HEAD", headers: { "sec-fetch-site": "same-origin" },
+  }));
+  expect(mocks.rpc).not.toHaveBeenCalled();
+  expect(mocks.getUser).not.toHaveBeenCalled();
 });

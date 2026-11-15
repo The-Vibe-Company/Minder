@@ -1,3 +1,4 @@
+import { canAutoJoin } from "@/lib/navigation-guard";
 import { inviteToken, joinCookieOptions } from "@/lib/invitations";
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
@@ -46,7 +47,7 @@ export async function proxy(request: NextRequest) {
   }
   const token = inviteToken(request.nextUrl.pathname);
   if (token && !user) response.cookies.set("minder_join", token, joinCookieOptions);
-  if (token && user) {
+  if (token && user && canAutoJoin(request)) {
     const { data, error } = await db.rpc("accept_invite", { p_token: token });
     if (!error && data) {
       const joined = NextResponse.redirect(new URL(`/lists/${data}`, request.url));

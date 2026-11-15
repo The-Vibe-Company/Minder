@@ -11,7 +11,8 @@ export const GET = route(async (_, ctx) => {
   const db = await createClient();
   const { data, error } = await db.rpc("invite_preview", { p_token: token });
   check(error);
-  return NextResponse.json({ invite: data?.[0] ?? null });
+  const { data: { user } } = await db.auth.getUser();
+  return NextResponse.json({ invite: data?.[0] ?? null, signedIn: Boolean(user) });
 });
 export const POST = route(async (_, ctx) => {
   const { token } = await ctx.params;

@@ -367,7 +367,9 @@ function useCanShare() {
 // Same origin as the server's invite links: the public site URL when set.
 function siteOrigin() {
   const configured = process.env.NEXT_PUBLIC_SITE_URL;
-  if (configured) {
+  // On a Vercel preview, stay on the preview, as the server does.
+  const preview = process.env.NEXT_PUBLIC_VERCEL_ENV === "preview";
+  if (configured && !preview) {
     try {
       return new URL(configured).origin;
     } catch {

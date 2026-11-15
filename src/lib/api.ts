@@ -115,6 +115,13 @@ export function safeNext(value: unknown) {
     : "/lists";
 }
 export function siteOrigin(request: Request) {
+  // On a Vercel preview, links (magic link, invites) come back to the preview
+  // that was opened, never to the production URL the env may point at.
+  if (process.env.VERCEL_ENV === "preview") {
+    const origin = new URL(request.url).origin;
+    if (origin && origin !== "null") return origin;
+    if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  }
   const configured = process.env.NEXT_PUBLIC_SITE_URL;
   if (configured) {
     try {

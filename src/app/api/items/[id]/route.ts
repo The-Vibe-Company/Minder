@@ -9,7 +9,7 @@ import {
   uuid,
   ApiError,
 } from "@/lib/api";
-async function owned(ctx: { params: Promise<Record<string, string>> }) {
+async function owned(ctx: { params: Promise<Record<string, string>> }, author = false) {
   const { id } = await ctx.params;
   uuid.parse(id);
   const { db, user } = await session();
@@ -20,11 +20,11 @@ async function owned(ctx: { params: Promise<Record<string, string>> }) {
     .single();
   check(error);
   if (!data) throw new ApiError(404, "Objet introuvable.");
-  await membership(db, data.list_id, user.id, true);
+  await membership(db, data.list_id, user.id, !(author && data.created_by === user.id));
   return { db, item: data };
 }
 export const PATCH = route(async (request, ctx) => {
-  const { db, item } = await owned(ctx);
+  const { db, item } = await owned(ctx, true);
   const changes = z.object({
     title: z.string().trim().max(120).optional(),
     description: z.string().trim().max(3000).optional(),

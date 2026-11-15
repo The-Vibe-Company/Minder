@@ -1,3 +1,4 @@
+import { onboardingPath } from "@/lib/profile";
 import { safeNext } from "@/lib/api";
 import { canAutoJoin } from "@/lib/navigation-guard";
 import { inviteToken, joinCookieOptions } from "@/lib/invitations";
@@ -45,6 +46,15 @@ export async function proxy(request: NextRequest) {
     const redirect = NextResponse.redirect(login);
     response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
     return redirect;
+  }
+  if (user && (request.nextUrl.pathname === "/lists" || request.nextUrl.pathname.startsWith("/lists/"))) {
+    const {data,error} = await db.from("profiles").select("onboarded_at").eq("id",user.id).single();
+    const path = onboardingPath(request.nextUrl.pathname + request.nextUrl.search, !error && !!data?.onboarded_at);
+    if (path) {
+      const redirect = NextResponse.redirect(new URL(path,request.url));
+      response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+      return redirect;
+    }
   }
   // Do not let a cross-site complete-page visit launder an existing session
   // into a same-origin callback that silently accepts an invitation.

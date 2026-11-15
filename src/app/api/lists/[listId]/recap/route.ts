@@ -2,17 +2,20 @@ import type { Profile } from "@/lib/database.types";
 import { collectPages } from "@/lib/pagination";
 import { NextResponse } from "next/server";
 
-import { route, session, membership, signed } from "@/lib/api";
+import { route, session, membership, signed, check } from "@/lib/api";
 export const GET = route(async (_, ctx) => {
   const { listId } = await ctx.params;
   const { db, user } = await session();
   await membership(db, listId, user.id, true);
+  const {data:list,error} = await db.from("lists").select("id,title").eq("id",listId).single();
+  check(error);
   const [items, votes, members] = await Promise.all([
     collectPages((from, to) =>
       db
         .from("items")
         .select("*")
         .eq("list_id", listId)
+        .eq("status", "published")
         .order("id")
         .range(from, to),
     ),
@@ -65,9 +68,10 @@ export const GET = route(async (_, ctx) => {
     }))
     .sort((a, b) => b.yes.length - a.yes.length);
   return NextResponse.json({
+    list,
     items: result,
     members: ids.map((id) => {
-      const own = votes.filter((v) => v.user_id === id);
+      const own = votes.filter((v) => v.user_id === id && items.some((i) => i.id === v.item_id));
       return {
         ...person(id),
         yes: own.filter((v) => v.choice === "yes").length,

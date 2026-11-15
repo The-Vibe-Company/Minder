@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { route, session, check, membership, signed, ApiError } from "@/lib/api";
-import { describeImage, embed, EMBEDDING_MODEL } from "@/lib/ai";
-export const maxDuration = 180;
+import { describeImage } from "@/lib/ai";
+export const maxDuration = 60;
 export const POST = route(async (request, ctx) => {
   const { listId } = await ctx.params;
   const { db, user } = await session();
   await membership(db, listId, user.id, true);
-  const { photoPath } = z
-    .object({ photoPath: z.string().max(200) })
+  const { photoPath, title } = z
+    .object({ photoPath: z.string().max(200), title: z.string().trim().max(120).optional() })
     .parse(await request.json());
   const pattern = new RegExp(
     `^${listId}/[0-9a-f-]{36}\\.(jpg|jpeg|png|webp|heic|heif)$`,
@@ -21,7 +21,7 @@ export const POST = route(async (request, ctx) => {
   if (download.error) throw new ApiError(400, "Photo introuvable.");
   const created = await db
     .from("items")
-    .insert({ list_id: listId, photo_path: photoPath })
+    .insert({ list_id: listId, photo_path: photoPath, title: title || null })
     .select()
     .single();
   check(created.error);
@@ -29,34 +29,36 @@ export const POST = route(async (request, ctx) => {
   const { data: url } = await db.storage
     .from("item-photos")
     .createSignedUrl(photoPath, 300);
-  const description = url ? await describeImage(url.signedUrl) : null;
-  const embedding = description ? await embed(description, "document") : null;
+  const proposal = url ? await describeImage(url.signedUrl) : null;
   let enrichmentSaved = false;
-  if (description) {
+  if (proposal) {
     const updated = await db
       .from("items")
       .update({
-        description,
-        description_auto: description,
-        embedding,
-        embedding_model: embedding ? EMBEDDING_MODEL : null,
+        title: item.title || proposal.title,
+        description: proposal.description,
+        description_auto: proposal.description,
       })
       .eq("id", item.id)
+      .eq("updated_at", item.updated_at)
       .select()
-      .single();
+      .maybeSingle();
     if (!updated.error && updated.data) {
       Object.assign(item, updated.data);
       enrichmentSaved = true;
+    } else {
+      // A manual edit wins over late AI output. Return that current version.
+      const current = await db.from("items").select("*").eq("id", item.id).maybeSingle();
+      if (current.data) Object.assign(item, current.data);
     }
   }
   return NextResponse.json(
     {
       item: (await signed(db, [item]))[0],
+      aiAvailable: enrichmentSaved,
       notice: !enrichmentSaved
         ? "La description automatique est indisponible. Vous pouvez décrire l’objet vous-même."
-        : !embedding
-          ? "Recherche sémantique indisponible pour cet objet."
-          : null,
+        : null,
     },
     { status: 201 },
   );

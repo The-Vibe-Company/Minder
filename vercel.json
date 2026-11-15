@@ -1,0 +1,6 @@
+{
+  "regions": ["cdg1"],
+  "functions": {
+    "src/app/api/lists/*/items/route.ts": { "maxDuration": 60 }
+  }
+}

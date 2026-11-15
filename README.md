@@ -21,14 +21,12 @@ Configurer `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` : projet Supabase.
 - `NEXT_PUBLIC_SITE_URL` : origine publique facultative ; sinon origine de la requête.
 - `OPENAI_API_KEY`, `OPENAI_VISION_MODEL` : description visuelle ; modèle par défaut `gpt-4.1-mini`.
-- `EMBED_URL` : origine HTTPS Modal sans chemin ; `EMBED_API_KEY` : authentification serveur.
-- `EMBED_MODEL` : facultatif, doit être exactement `google/embeddinggemma-2`.
 
-Ne jamais exposer les clés IA au navigateur. Sur Vercel, configurer les variables publiques avant le build. Les intégrations IA absentes ou indisponibles n’empêchent pas de créer les objets : description vide modifiable, vecteur nul et recherche textuelle. Les routes IA demandent jusqu’à 180 secondes ; le plan Vercel doit autoriser cette durée.
+Ne jamais exposer les clés IA au navigateur. Sur Vercel, configurer les variables publiques avant le build. Les intégrations IA absentes ou indisponibles n’empêchent pas de créer les objets : titre et description vides modifiables, avec `aiAvailable: false` et un message `notice` dans la réponse de création. OpenAI a un délai maximal de 45 secondes ; la route de création et Vercel sont limités à 60 secondes (région cdg1).
 
 ## Base de données
 
-Les deux fichiers dans `supabase/migrations/` sont les copies verbatim du SQL déjà appliqué au projet live. **Ne pas les réappliquer sur ce projet.** Pour un nouveau projet, les appliquer dans l’ordre ; pgvector est requis dans le schéma `extensions`. Les triggers créent profils et appartenance propriétaire. Le bucket privé `item-photos` utilise des chemins `{list_id}/{uuid}.jpg`, lecture membres et écriture propriétaire uniquement.
+Les trois fichiers dans `supabase/migrations/` sont les copies verbatim du SQL déjà appliqué au projet live. **Ne pas les réappliquer sur ce projet.** Pour un nouveau projet, les appliquer dans l’ordre ; pgvector est requis dans le schéma `extensions`. Les triggers créent profils et appartenance propriétaire. Le bucket privé `item-photos` utilise des chemins `{list_id}/{uuid}.jpg`, lecture membres et écriture propriétaire uniquement.
 
 ## Architecture
 
@@ -36,8 +34,9 @@ Les deux fichiers dans `supabase/migrations/` sont les copies verbatim du SQL d�
 - `src/proxy.ts` : middleware Next 16, rafraîchissement des cookies et protection de `/lists/**` ; chaque API vérifie aussi authentification et appartenance/rôle.
 - Clients Supabase SSR et navigateur typés dans `src/lib/supabase`, schéma manuel dans `database.types.ts`.
 - Upload direct navigateur : conversion JPEG max 1600 px, puis création serveur et enrichissement facultatif. Téléchargement privé via session et URLs signées pour affichage.
-- OpenAI décrit l’image en français. Modal reste **côté serveur** pour protéger sa clé ; le modèle est **texte uniquement**, il vectorise la description éditable et non la photo. Documents : `title: none | text: …`, requêtes : `task: search result | query: …`. Vecteurs 768 dimensions transmis à pgvector sous forme littérale. Délai 45 s, une nouvelle tentative.
-- Recherche textuelle française via RPC, sémantique via RPC `match_items`, hybride par fusion reciprocal-rank (k=60). Pas de dépendance IA pour la recherche par mots.
+- OpenAI propose un titre français de 2 à 5 mots et une description. Un titre fourni à la création est préservé ; une édition manuelle concurrente prime sur la génération automatique. Aucun appel de vectorisation. La colonne nullable `items.embedding` reste inutilisée pour plus tard.
+- Recherche uniquement textuelle via `search_items_text` : FTS française pondérée titre (A) et description (B), avec correspondance `ilike`. `GET /api/lists/[listId]/search?q=...` ignore tout paramètre `mode` historique.
+- Création : `{photoPath, title?}` ; édition PATCH : `{title?, description?}` (au moins un champ). Titre limité à 120 caractères, description à 3000.
 - Votes upsert par objet/utilisateur, annulation du dernier vote côté interface. Récapitulatif propriétaire trié par nombre de oui.
 
 ## Vérifier
@@ -49,6 +48,6 @@ pnpm test
 pnpm build
 ```
 
-Les tests Vitest couvrent vecteurs, RRF, requête embeddings et dégradation. `/api/health` retourne uniquement des booléens de configuration, pas un test réseau.
+Les tests Vitest couvrent la sortie structurée de vision et sa dégradation, la recherche textuelle et les helpers auth. `/api/health` est exécuté à chaque requête via `connection()` (équivalent dynamique compatible Cache Components) et retourne uniquement `{ok, supabase, openai}`, pas un test réseau.
 
 Test manuel avec deux comptes : connexion email, création de liste, upload multiple, édition, invitation (y compris connexion depuis le lien), vote/annulation, recherche, récapitulatif et refus d’accès depuis un non-membre. Sans variables live, les validations automatisées ne prouvent pas ce parcours intégré. Après une heure, recharger pour renouveler les URLs des photos.

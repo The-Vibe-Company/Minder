@@ -1,4 +1,7 @@
-export function GET() {
+import { connection } from "next/server";
+// Cache Components rejects dynamic="force-dynamic"; opt into request-time execution.
+export async function GET() {
+  await connection();
   return Response.json({
     ok: true,
     supabase: Boolean(
@@ -6,6 +9,5 @@ export function GET() {
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     ),
     openai: Boolean(process.env.OPENAI_API_KEY),
-    embeddings: Boolean(process.env.EMBED_URL && process.env.EMBED_API_KEY),
   });
 }

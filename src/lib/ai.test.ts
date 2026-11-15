@@ -1,74 +1,27 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { embed, EMBEDDING_MODEL, rrf, vectorLiteral } from "./ai";
-afterEach(() => vi.unstubAllEnvs());
-describe("vectors", () => {
-  it("formats 768 finite dimensions", () => {
-    expect(vectorLiteral(Array(768).fill(0.1))).toBe(
-      `[${Array(768).fill(0.1).join(",")}]`,
-    );
-    expect(() => vectorLiteral([1])).toThrow();
-    expect(() => vectorLiteral(Array(768).fill(NaN))).toThrow();
-  });
+import { afterEach, expect, it, vi } from "vitest";
+import { describeImage } from "./ai";
+afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+it("does not call OpenAI without a key", async () => {
+  vi.stubEnv("OPENAI_API_KEY", "");
+  const fetcher = vi.fn();
+  vi.stubGlobal("fetch", fetcher);
+  expect(await describeImage("https://photo.example")).toBeNull();
+  expect(fetcher).not.toHaveBeenCalled();
 });
-describe("rank fusion", () => {
-  it("promotes agreement without duplicate votes", () => {
-    expect(
-      rrf([
-        [{ id: "a" }, { id: "b" }],
-        [{ id: "b" }, { id: "c" }],
-      ]).map((x) => x.id),
-    ).toEqual(["b", "a", "c"]);
-    expect(rrf([[{ id: "a" }, { id: "a" }], [{ id: "b" }]])).toEqual([
-      { id: "a" },
-      { id: "b" },
-    ]);
-  });
+it("requests and validates a French title and description", async () => {
+  vi.stubEnv("OPENAI_API_KEY", "test");
+  const fetcher = vi.fn().mockResolvedValue(Response.json({ choices: [{ message: { content: JSON.stringify({title: "Chaise en bois", description: "Une chaise brune."}) } }] }));
+  vi.stubGlobal("fetch", fetcher);
+  expect(await describeImage("https://photo.example")).toEqual({ title: "Chaise en bois", description: "Une chaise brune." });
+  expect(JSON.parse(fetcher.mock.calls[0][1].body).response_format).toEqual({ type: "json_object" });
 });
-describe("embedding client", () => {
-  it("degrades without credentials and does not call fetch", async () => {
-    vi.stubEnv("EMBED_URL", "");
-    vi.stubEnv("EMBED_API_KEY", "");
-    const fetcher = vi.fn();
-    expect(await embed("chaise", "document", fetcher)).toBeNull();
-    expect(fetcher).not.toHaveBeenCalled();
-  });
-  it("sends exact model, prefixes and dimensions", async () => {
-    vi.stubEnv("EMBED_URL", "https://embed.example");
-    vi.stubEnv("EMBED_API_KEY", "test");
-    vi.stubEnv("EMBED_MODEL", "");
-    const fetcher = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify({ data: [{ embedding: Array(768).fill(0.1) }] }),
-        ),
-      );
-    expect(await embed("chaise", "document", fetcher)).not.toBeNull();
-    const [url, options] = fetcher.mock.calls[0];
-    expect(url).toBe("https://embed.example/v1/embeddings");
-    expect(JSON.parse(options.body)).toEqual({
-      model: EMBEDDING_MODEL,
-      input: ["title: none | text: chaise"],
-      dimensions: 768,
-    });
-    await embed("bois", "query", fetcher);
-    expect(JSON.parse(fetcher.mock.calls[1][1].body).input).toEqual([
-      "task: search result | query: bois",
-    ]);
-  });
-  it("retries once then degrades", async () => {
-    vi.stubEnv("EMBED_URL", "https://embed.example");
-    vi.stubEnv("EMBED_API_KEY", "test");
-    vi.stubEnv("EMBED_MODEL", "");
-    const fetcher = vi.fn().mockRejectedValue(new Error("offline"));
-    expect(await embed("table", "query", fetcher)).toBeNull();
-    expect(fetcher).toHaveBeenCalledTimes(2);
-  });
-  it("rejects non-origin endpoints and incompatible models", async () => {
-    vi.stubEnv("EMBED_URL", "http://embed.example/path");
-    vi.stubEnv("EMBED_API_KEY", "test");
-    const fetcher = vi.fn();
-    expect(await embed("table", "query", fetcher)).toBeNull();
-    expect(fetcher).not.toHaveBeenCalled();
-  });
+it.each(["invalid json", '{}', '{"title":12,"description":"test"}'])("degrades on malformed vision output: %s", async (content) => {
+  vi.stubEnv("OPENAI_API_KEY", "test");
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({choices: [{message: {content}}]})));
+  expect(await describeImage("https://photo.example")).toBeNull();
+});
+it("degrades on network failure", async () => {
+  vi.stubEnv("OPENAI_API_KEY", "test");
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+  expect(await describeImage("https://photo.example")).toBeNull();
 });

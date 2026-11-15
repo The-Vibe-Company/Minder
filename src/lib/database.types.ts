@@ -30,6 +30,7 @@ export type Item = {
   list_id: string;
   created_by: string;
   photo_path: string;
+  title: string | null;
   description: string | null;
   description_auto: string | null;
   embedding: string | null;
@@ -53,7 +54,7 @@ type Table<R, Required extends keyof R> = {
   Update: Partial<R>;
   Relationships: [];
 };
-type SearchItem = Pick<Item, "id" | "list_id" | "photo_path" | "description">;
+type SearchItem = Pick<Item, "id" | "list_id" | "photo_path" | "title" | "description">;
 export type Database = {
   public: {
     Tables: {
@@ -85,14 +86,6 @@ export type Database = {
       search_items_text: {
         Args: { p_list_id: string; p_query: string; p_limit?: number };
         Returns: (SearchItem & { rank: number })[];
-      };
-      match_items: {
-        Args: {
-          p_list_id: string;
-          p_query_embedding: string;
-          p_limit?: number;
-        };
-        Returns: (SearchItem & { similarity: number })[];
       };
       is_list_member: { Args: { p_list_id: string }; Returns: boolean };
       is_list_owner: { Args: { p_list_id: string }; Returns: boolean };

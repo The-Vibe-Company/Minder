@@ -1,3 +1,4 @@
+import { configuredSiteOrigin } from "@/lib/site-origin";
 import { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Figtree } from "next/font/google";
@@ -18,6 +19,7 @@ const body = Figtree({
 });
 
 export const metadata: Metadata = {
+  metadataBase: configuredSiteOrigin() ? new URL(configuredSiteOrigin()!) : undefined,
   title: {
     default: "Minder — on se partage les objets de la maison",
     template: "%s · Minder",

@@ -14,14 +14,14 @@ it("uses the configured site URL in production", () => {
   ).toBe("https://minder.example");
 });
 
-it("keeps magic links and invites on the preview that was opened", () => {
+it("uses the configured canonical origin in preview too", () => {
   vi.stubEnv("VERCEL_ENV", "preview");
   vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://minder.example");
   expect(
     siteOrigin(
       request("https://minder-git-branch-team.vercel.app/api/auth/login"),
     ),
-  ).toBe("https://minder-git-branch-team.vercel.app");
+  ).toBe("https://minder.example");
 });
 
 it("falls back to the request origin when no site URL is set", () => {

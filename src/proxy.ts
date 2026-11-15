@@ -1,3 +1,4 @@
+import { canonicalRedirect } from "@/lib/site-origin";
 import { onboardingPath } from "@/lib/profile";
 import { safeNext } from "@/lib/api";
 import { canAutoJoin } from "@/lib/navigation-guard";
@@ -5,6 +6,8 @@ import { inviteToken, joinCookieOptions } from "@/lib/invitations";
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 export async function proxy(request: NextRequest) {
+  const canonical = canonicalRedirect(request);
+  if (canonical) return NextResponse.redirect(canonical, 308);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL,
     key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key) {

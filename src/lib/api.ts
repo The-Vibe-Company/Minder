@@ -114,23 +114,4 @@ export function safeNext(value: unknown) {
     ? value
     : "/lists";
 }
-export function siteOrigin(request: Request) {
-  // On a Vercel preview, links (magic link, invites) come back to the preview
-  // that was opened, never to the production URL the env may point at.
-  if (process.env.VERCEL_ENV === "preview") {
-    const origin = new URL(request.url).origin;
-    if (origin && origin !== "null") return origin;
-    if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  }
-  const configured = process.env.NEXT_PUBLIC_SITE_URL;
-  if (configured) {
-    try {
-      return new URL(configured).origin;
-    } catch {
-      throw new ApiError(503, "URL du site invalide.");
-    }
-  }
-  const origin = new URL(request.url).origin;
-  if (origin) return origin;
-  return process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : origin;
-}
+export { siteOrigin } from "./site-origin";

@@ -21,7 +21,7 @@ declare
   ud uuid := '00000000-0000-4000-a000-00000000000d'; -- email invited, existing confirmed
   ue uuid := '00000000-0000-4000-a000-00000000000e'; -- email invited before signup
   uf uuid := '00000000-0000-4000-a000-00000000000f'; -- unconfirmed with invited email
-  l uuid; l2 uuid; tok text; tok2 text; n int; v uuid; msg text;
+  test_item uuid; l uuid; l2 uuid; tok text; tok2 text; n int; v uuid; msg text;
 begin
   insert into auth.users(id, instance_id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at) values
    (ua,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','rls-a@minder.test',now(),'{}','{}',now(),now()),
@@ -98,6 +98,53 @@ begin
   perform set_config('role','postgres',true); perform set_config('request.jwt.claims','{"role":"anon"}',true); perform set_config('role','anon',true);
   begin select count(*) into n from public.lists; msg:=n::text; exception when others then msg:='denied'; end;
   perform pg_temp.r('anon sees no list','denied',case when msg in ('0','denied') then 'denied' else msg end);
+
+
+  -- Lot 2 drafts, author publication, votes, immutable fields and cascade.
+  perform pg_temp.as_user(ua);
+  insert into public.items(list_id,photo_path,title,status) values(l,l::text||'/test.jpg','Test','published') returning id into test_item;
+  select count(*) into n from public.items where id=test_item and status='draft';
+  perform pg_temp.r('direct published insert forced to draft','1',n::text);
+  perform pg_temp.as_user(ua); select count(*) into n from public.items where id=test_item;
+  perform pg_temp.r('owner sees draft','1',n::text);
+  perform pg_temp.as_user(ub); select count(*) into n from public.items where id=test_item;
+  perform pg_temp.r('guest cannot see draft','0',n::text);
+  perform pg_temp.as_user(ub); select count(*) into n from public.items_to_swipe(l,100) where id=test_item;
+  perform pg_temp.r('swipe hides draft','0',n::text);
+  begin perform pg_temp.as_user(ub); insert into public.votes(item_id,list_id,choice) values(test_item,l,'yes'); msg:='allowed'; exception when others then msg:='denied'; end;
+  perform pg_temp.r('guest cannot vote on draft','denied',msg);
+  perform pg_temp.as_user(ub); update public.items set status='published',title='stolen' where id=test_item; get diagnostics n=row_count;
+  perform pg_temp.r('guest cannot edit or publish draft','0',n::text);
+  perform pg_temp.as_user(ua); update public.items set status='published' where id=test_item;
+  perform pg_temp.as_user(ub); select count(*) into n from public.items where id=test_item and status='published' and published_at is not null;
+  perform pg_temp.r('guest sees author publication','1',n::text);
+  perform pg_temp.as_user(ub); insert into public.votes(item_id,list_id,choice) values(test_item,l,'yes');
+  perform pg_temp.as_user(uc); select count(*) into n from public.votes where votes.item_id=test_item;
+  perform pg_temp.r('guest likes cannot read other guest votes','0',n::text);
+  perform pg_temp.as_user(ub); update public.items set created_by=ub,list_id=l2 where id=test_item; get diagnostics n=row_count;
+  perform pg_temp.r('guest cannot change item author or list','0',n::text);
+  begin perform pg_temp.as_user(ua); update public.items set created_by=ub where id=test_item; msg:='allowed'; exception when others then msg:='denied'; end;
+  perform pg_temp.r('owner cannot change immutable author','denied',msg);
+  perform pg_temp.as_user(ub); delete from public.votes where votes.item_id=test_item; get diagnostics n=row_count;
+  perform pg_temp.r('guest removes own like','1',n::text);
+  perform pg_temp.as_user(ua); select count(*) into n from public.votes where votes.item_id=test_item;
+  perform pg_temp.r('removed like no longer in recap','0',n::text);
+  perform pg_temp.as_user(ub); update public.profiles set display_name='Other' where id=ua; get diagnostics n=row_count;
+  perform pg_temp.r('profile update only own row','0',n::text);
+  perform pg_temp.as_user(ub); update public.profiles set display_name='Bob',onboarded_at=now() where id=ub; get diagnostics n=row_count;
+  perform pg_temp.r('profile update own row allowed','1',n::text);
+  perform pg_temp.as_user(ub); delete from public.lists where id=l; get diagnostics n=row_count;
+  perform pg_temp.r('guest cannot delete list','0',n::text);
+  perform pg_temp.as_user(ub); insert into public.votes(item_id,list_id,choice) values(test_item,l,'yes');
+  perform pg_temp.as_user(ua); delete from public.lists where id=l; get diagnostics n=row_count;
+  perform pg_temp.r('owner deletes list','1',n::text);
+  perform set_config('role','postgres',true);
+  select count(*) into n from public.items where id=test_item;
+  perform pg_temp.r('list cascades items','0',n::text);
+  select count(*) into n from public.votes where list_id=l;
+  perform pg_temp.r('list cascades votes','0',n::text);
+  select count(*) into n from public.list_members where list_id=l;
+  perform pg_temp.r('list cascades memberships','0',n::text);
 
   -- cleanup
   perform set_config('role','postgres',true);

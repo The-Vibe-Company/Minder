@@ -100,6 +100,15 @@ begin
   perform pg_temp.r('anon sees no list','denied',case when msg in ('0','denied') then 'denied' else msg end);
 
 
+  -- An owner of another list cannot use it to reference L's private photo.
+  perform pg_temp.as_user(ub);
+  insert into public.lists(title) values ('Photo isolation') returning id into v;
+  begin
+    insert into public.items(list_id,photo_path,title) values(v,l::text||'/test.jpg','Foreign photo');
+    msg:='allowed';
+  exception when check_violation then msg:='denied'; end;
+  perform pg_temp.r('foreign-list photo_path denied','denied',msg);
+
   -- Lot 2 drafts, author publication, votes, immutable fields and cascade.
   perform pg_temp.as_user(ua);
   insert into public.items(list_id,photo_path,title,status) values(l,l::text||'/test.jpg','Test','published') returning id into test_item;
@@ -107,6 +116,16 @@ begin
   perform pg_temp.r('direct published insert forced to draft','1',n::text);
   perform pg_temp.as_user(ua); select count(*) into n from public.items where id=test_item;
   perform pg_temp.r('owner sees draft','1',n::text);
+  perform set_config('role','postgres',true);
+  insert into storage.objects(bucket_id,name,owner) values
+    ('item-photos',l::text||'/test.jpg',ua),
+    ('item-photos','not-a-uuid/rls-test.jpg',ua);
+  perform pg_temp.as_user(ub);
+  select count(*) into n from storage.objects where bucket_id='item-photos' and name=l::text||'/test.jpg';
+  perform pg_temp.r('guest cannot select draft photo','0',n::text);
+  perform pg_temp.as_user(ub);
+  select count(*) into n from storage.objects where bucket_id='item-photos' and name='not-a-uuid/rls-test.jpg';
+  perform pg_temp.r('malformed folder denied without cast error','0',n::text);
   perform pg_temp.as_user(ub); select count(*) into n from public.items where id=test_item;
   perform pg_temp.r('guest cannot see draft','0',n::text);
   perform pg_temp.as_user(ub); select count(*) into n from public.items_to_swipe(l,100) where id=test_item;
@@ -118,6 +137,12 @@ begin
   perform pg_temp.as_user(ua); update public.items set status='published' where id=test_item;
   perform pg_temp.as_user(ub); select count(*) into n from public.items where id=test_item and status='published' and published_at is not null;
   perform pg_temp.r('guest sees author publication','1',n::text);
+  perform pg_temp.as_user(ub);
+  select count(*) into n from storage.objects where bucket_id='item-photos' and name=l::text||'/test.jpg';
+  perform pg_temp.r('guest selects published photo','1',n::text);
+  perform pg_temp.as_user('00000000-0000-4000-a000-000000000099'::uuid);
+  select count(*) into n from storage.objects where bucket_id='item-photos' and name=l::text||'/test.jpg';
+  perform pg_temp.r('non-member cannot select published photo','0',n::text);
   perform pg_temp.as_user(ub); insert into public.votes(item_id,list_id,choice) values(test_item,l,'yes');
   perform pg_temp.as_user(uc); select count(*) into n from public.votes where votes.item_id=test_item;
   perform pg_temp.r('guest likes cannot read other guest votes','0',n::text);
@@ -148,6 +173,7 @@ begin
 
   -- cleanup
   perform set_config('role','postgres',true);
+  delete from storage.objects where bucket_id='item-photos' and name in (l::text||'/test.jpg','not-a-uuid/rls-test.jpg');
   delete from public.lists where owner_id in (ua,ub,uc,ud,ue,uf);
   delete from auth.users where id in (ua,ub,uc,ud,ue,uf);
 end $$;

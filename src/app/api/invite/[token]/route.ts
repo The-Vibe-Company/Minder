@@ -1,3 +1,4 @@
+import { joinCookieOptions } from "@/lib/invitations";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { route, session, check } from "@/lib/api";
@@ -20,5 +21,7 @@ export const POST = route(async (_, ctx) => {
   const { db } = await session();
   const { data, error } = await db.rpc("accept_invite", { p_token: token });
   check(error);
-  return NextResponse.json({ listId: data });
+  const response = NextResponse.json({ listId: data });
+  response.cookies.set("minder_join", "", { ...joinCookieOptions, maxAge: 0 });
+  return response;
 });

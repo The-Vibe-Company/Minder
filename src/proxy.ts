@@ -1,3 +1,4 @@
+import { inviteToken, joinCookieOptions } from "@/lib/invitations";
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 export async function proxy(request: NextRequest) {
@@ -12,7 +13,10 @@ export async function proxy(request: NextRequest) {
       );
       return NextResponse.redirect(login);
     }
-    return NextResponse.next();
+    const response = NextResponse.next();
+    const token = inviteToken(request.nextUrl.pathname);
+    if (token) response.cookies.set("minder_join", token, joinCookieOptions);
+    return response;
   }
   let response = NextResponse.next({ request });
   const db = createServerClient(url, key, {
@@ -39,6 +43,17 @@ export async function proxy(request: NextRequest) {
     const redirect = NextResponse.redirect(login);
     response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
     return redirect;
+  }
+  const token = inviteToken(request.nextUrl.pathname);
+  if (token && !user) response.cookies.set("minder_join", token, joinCookieOptions);
+  if (token && user) {
+    const { data, error } = await db.rpc("accept_invite", { p_token: token });
+    if (!error && data) {
+      const joined = NextResponse.redirect(new URL(`/lists/${data}`, request.url));
+      response.cookies.getAll().forEach((cookie) => joined.cookies.set(cookie));
+      joined.cookies.set("minder_join", "", { ...joinCookieOptions, maxAge: 0 });
+      return joined;
+    }
   }
   return response;
 }

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { route, session, check, membership } from "@/lib/api";
 export const GET = route(async () => {
   const { db, user } = await session();
+  await db.rpc("claim_email_invites").then(() => {}, () => {});
   const data = await collectPages((from, to) =>
     db
       .from("lists")

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Swipe } from "@/components/swipe";
 export default async function Page({
   params,
@@ -7,3 +8,5 @@ export default async function Page({
   const { id } = await params;
   return <Swipe id={id} />;
 }
+
+export const metadata: Metadata = { title: "Swiper" };

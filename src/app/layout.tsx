@@ -1,28 +1,54 @@
 import { Suspense } from "react";
-import type { Metadata } from "next";
-import Link from "next/link";
-import { Logout } from "@/components/login";
+import type { Metadata, Viewport } from "next";
+import { Bricolage_Grotesque, Figtree } from "next/font/google";
 import "./globals.css";
+
+const display = Bricolage_Grotesque({
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+  variable: "--font-bricolage",
+  display: "swap",
+});
+const body = Figtree({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-figtree",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
-  title: "Minder — les objets de famille",
-  description: "Partagez les objets et les souvenirs en famille.",
+  title: {
+    default: "Minder — on se partage les objets de la maison",
+    template: "%s · Minder",
+  },
+  description:
+    "La maison est vendue : Muriel photographie les objets, la famille dit « je le veux » ou « non merci », et chacun repart avec ce qui compte.",
+  openGraph: {
+    title: "Minder — on se partage les objets de la maison",
+    description:
+      "Muriel photographie les objets, la famille swipe, et chacun repart avec ce qui compte.",
+    locale: "fr_FR",
+    type: "website",
+  },
 };
+
+export const viewport: Viewport = {
+  themeColor: "#2343a6",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="fr">
+    <html lang="fr" className={`${display.variable} ${body.variable}`}>
       <body>
-        <header className="mx-auto max-w-5xl px-5 py-6 flex flex-wrap gap-5 items-center border-b border-stone-300">
-          <Link href="/" className="text-3xl font-serif mr-auto">
-            Minder
-          </Link>
-          <Link href="/lists">Mes listes</Link>
-          <Logout />
-        </header>
-        <main className="mx-auto max-w-5xl px-5 py-10">
-          <Suspense fallback={<p>Chargement…</p>}>{children}</Suspense>
-        </main>
+        <a
+          href="#contenu"
+          className="sr-only z-50 rounded-full bg-citron px-5 py-3 font-bold text-ink focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+        >
+          Aller au contenu
+        </a>
+        <Suspense fallback={null}>{children}</Suspense>
       </body>
     </html>
   );

@@ -1,6 +1,6 @@
 # Minder
 
-Une maison vendue, des objets à transmettre : Muriel photographie les objets, puis la famille invitée choisit ce qu’elle souhaite garder. Site mobile-first, utilisable sur ordinateur. Interface volontairement sobre, prête à être restylée.
+Une maison vendue, des objets à transmettre : Muriel photographie les objets, puis la famille invitée choisit ce qu’elle souhaite garder. Site mobile-first (390 px d’abord), agréable aussi sur ordinateur. Direction artistique « toile » : la grande table de la cuisine sous sa toile cirée (voir `.aeom/standard.md`).
 
 ## Démarrer
 
@@ -38,6 +38,12 @@ Les trois fichiers dans `supabase/migrations/` sont les copies verbatim du SQL d
 - Recherche uniquement textuelle via `search_items_text` : FTS française pondérée titre (A) et description (B), avec correspondance `ilike`. `GET /api/lists/[listId]/search?q=...` ignore tout paramètre `mode` historique.
 - Création : `{photoPath, title?}` ; édition PATCH : `{title?, description?}` (au moins un champ). Titre limité à 120 caractères, description à 3000.
 - Votes upsert par objet/utilisateur, annulation du dernier vote côté interface. Récapitulatif propriétaire trié par nombre de oui.
+
+## Design
+
+La direction a été choisie avec [All Eyes On Me](https://github.com/The-Vibe-Company/all-eyes-on-me) : fiche produit dans `.aeom/product.md`, standard du front (jetons, kit, règles) dans `.aeom/standard.md`, maquettes de la direction retenue dans `.aeom/direction/`. Les jetons vivent dans `src/app/globals.css` (`@theme`, classes du kit en `@utility`), les composants partagés dans `src/components/ui.tsx`.
+
+En développement, `/dev/preview` affiche chaque écran derrière la connexion avec de fausses données (fetch simulé, envoi de photos simulé ; un nom de fichier contenant « flou » échoue exprès). La route répond 404 dans un build de production. `.aeom/runs/` reste hors de git.
 
 ## Vérifier
 

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Search } from "@/components/search";
 export default async function Page({
   params,
@@ -7,3 +8,5 @@ export default async function Page({
   const { id } = await params;
   return <Search id={id} />;
 }
+
+export const metadata: Metadata = { title: "Rechercher" };

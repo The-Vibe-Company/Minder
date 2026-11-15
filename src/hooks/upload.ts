@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/browser";
 import { request } from "./use-resource";
+
 async function jpeg(file: File): Promise<Blob> {
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
@@ -20,25 +21,47 @@ async function jpeg(file: File): Promise<Blob> {
     ),
   );
 }
+
+export type UploadStep =
+  "waiting" | "sending" | "describing" | "done" | "error";
+export type UploadUpdate = { step: UploadStep; notice?: string };
+export type Uploader = (
+  listId: string,
+  file: File,
+  update: (u: UploadUpdate) => void,
+) => Promise<void>;
+
+/** Sends one photo: JPEG conversion, private storage, then item creation and optional description. */
+export const uploadPhoto: Uploader = async (listId, file, update) => {
+  update({ step: "sending" });
+  const blob = await jpeg(file);
+  const supabase = createClient();
+  const photoPath = `${listId}/${crypto.randomUUID()}.jpg`;
+  const { error } = await supabase.storage
+    .from("item-photos")
+    .upload(photoPath, blob, { contentType: "image/jpeg" });
+  if (error) throw new Error("Impossible d’envoyer la photo.");
+  update({ step: "describing" });
+  const result = await request<{ notice?: string | null }>(
+    `/api/lists/${listId}/items`,
+    "POST",
+    { photoPath },
+  );
+  update({ step: "done", notice: result.notice ?? undefined });
+};
+
+/** Sends photos one after the other; a failed photo does not stop the others. */
 export async function uploadPhotos(
   listId: string,
   files: File[],
-  progress: (message: string) => void,
+  update: (index: number, u: UploadUpdate) => void,
+  send: Uploader = uploadPhoto,
 ) {
-  const supabase = createClient();
   for (let i = 0; i < files.length; i++) {
-    progress(`Photo ${i + 1}/${files.length} : préparation et description…`);
-    const blob = await jpeg(files[i]);
-    const photoPath = `${listId}/${crypto.randomUUID()}.jpg`;
-    const { error } = await supabase.storage
-      .from("item-photos")
-      .upload(photoPath, blob, { contentType: "image/jpeg" });
-    if (error) throw new Error("Impossible d’envoyer la photo.");
-    const result = await request<{ notice?: string }>(
-      `/api/lists/${listId}/items`,
-      "POST",
-      { photoPath },
-    );
-    if (result.notice) progress(result.notice);
+    try {
+      await send(listId, files[i], (u) => update(i, u));
+    } catch (e) {
+      update(i, { step: "error", notice: (e as Error).message });
+    }
   }
 }

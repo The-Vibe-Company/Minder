@@ -23,7 +23,7 @@ Why: Muriel wants her family to say which objects they want before the move. (se
 2. Read the « vérifiez votre boîte mail » state, open the link from her mail.
 3. On `/lists`, type « La maison de Rennes » and press « Créer une liste ».
 4. On `/lists/:id`, press « Ajouter des photos » and pick several photos at once.
-5. Watch each photo's progress, then fix one description in the grid and press « Enregistrer ».
+5. Watch each photo's progress, then fix one title and description in the grid and press « Enregistrer ».
 6. In the invite panel, press « Créer un lien à partager » and copy or share it.
 
 ### Choose what I want to keep
@@ -38,8 +38,8 @@ Why: a relative wants to say which objects they would like, quickly, on their ph
 ### Find an object I remember
 Why: a relative remembers « la lampe verte du bureau » and wants to find it. (seen: src/components/search.tsx)
 1. On `/lists/:id/search`, type « lampe verte ».
-2. Choose words or meaning, then press « Rechercher ».
-3. Read the results, and the notice when search by meaning is unavailable.
+2. Press « Chercher ».
+3. Read the results, each with its title and description.
 
 ### See who wants what
 Why: Muriel wants to know which objects several people want, to talk it over. (seen: src/components/recap.tsx)

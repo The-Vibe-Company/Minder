@@ -5,25 +5,9 @@ import { useTask } from "@/hooks/use-task";
 import { Item, ListShell, Notice, Photo, itemName } from "./ui";
 import { IconSearch } from "./icons";
 
-type Mode = "text" | "semantic";
-const MODES: { value: Mode; label: string; hint: string }[] = [
-  {
-    value: "text",
-    label: "Par les mots",
-    hint: "Les objets dont le nom ou la description contient vos mots",
-  },
-  {
-    value: "semantic",
-    label: "Par le sens",
-    hint: "« un truc pour s’asseoir » devrait trouver le fauteuil",
-  },
-];
-
 export function Search({ id }: { id: string }) {
   const task = useTask();
-  const [mode, setMode] = useState<Mode>("text");
   const [results, setResults] = useState<{ q: string; items: Item[] }>();
-  const [fallback, setFallback] = useState(false);
   return (
     <ListShell id={id} active="rechercher" subtitle="Retrouver un objet">
       <div className="mx-auto max-w-[920px] px-4 pt-6 lg:px-8 lg:pt-10">
@@ -40,14 +24,11 @@ export function Search({ id }: { id: string }) {
             ).trim();
             if (!q) return;
             void task.run(async () => {
-              const params = new URLSearchParams({ q, mode });
-              const r = await request<{
-                items: Item[];
-                semanticAvailable?: boolean;
-              }>(`/api/lists/${id}/search?${params}`);
+              const params = new URLSearchParams({ q });
+              const r = await request<{ items: Item[] }>(
+                `/api/lists/${id}/search?${params}`,
+              );
               setResults({ q, items: r.items });
-              // The API searches by words only for now; meaning falls back to words.
-              setFallback(mode === "semantic" && r.semanticAvailable !== true);
             });
           }}
         >
@@ -64,7 +45,7 @@ export function Search({ id }: { id: string }) {
                 required
                 maxLength={500}
                 enterKeyHint="search"
-                placeholder="La lampe verte du bureau"
+                placeholder="La lampe verte"
                 className="field pl-12"
               />
             </div>
@@ -72,42 +53,12 @@ export function Search({ id }: { id: string }) {
               {task.busy ? "…" : "Chercher"}
             </button>
           </div>
-          <fieldset className="mt-3">
-            <legend className="sr-only">Façon de chercher</legend>
-            <div className="inline-flex rounded-full bg-faience p-1">
-              {MODES.map((m) => (
-                <label
-                  key={m.value}
-                  className={`flex min-h-11 items-center rounded-full px-4 text-[14px] font-bold transition-colors has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-citron ${
-                    mode === m.value
-                      ? "bg-ink text-enamel"
-                      : "text-muted hover:text-ink"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="mode"
-                    value={m.value}
-                    checked={mode === m.value}
-                    onChange={() => setMode(m.value)}
-                    className="sr-only"
-                  />
-                  {m.label}
-                </label>
-              ))}
-            </div>
-            <p className="mt-2 text-[14px] text-muted">
-              {MODES.find((m) => m.value === mode)!.hint}
-            </p>
-          </fieldset>
+          <p className="mt-2 text-[14px] text-muted">
+            Un mot du nom ou de la description suffit : « lampe », « Quimper »,
+            « velours ».
+          </p>
         </form>
         <Notice tone="error">{task.message}</Notice>
-        {fallback && (
-          <Notice>
-            La recherche par le sens n’est pas encore là : voici les résultats
-            par mots, c’est déjà pas mal.
-          </Notice>
-        )}
         <section aria-live="polite" className="mt-6">
           {results && (
             <>

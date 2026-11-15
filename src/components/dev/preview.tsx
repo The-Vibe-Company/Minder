@@ -159,7 +159,6 @@ function install(screen: Screen) {
             ),
           )
           .map(strip),
-        semanticAvailable: false,
       });
     }
     if (p === `/api/lists/${LIST_ID}/recap`) {

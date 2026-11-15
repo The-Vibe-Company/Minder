@@ -116,6 +116,9 @@ export function Likes() {
           action: {
             label: "Annuler",
             run: () => {
+              // Undo before the card has finished leaving: stop it leaving.
+              clearTimeout(timer);
+              setLeaving((l) => l.filter((x) => x !== like.id));
               putBack(like, index);
               setTimeout(
                 () =>

@@ -14,6 +14,7 @@ export const SCREENS = {
   "invitation-expiree": "Invitation expirée",
   connexion: "Connexion",
   bienvenue: "Bienvenue, le prénom",
+  "bienvenue-hors-ligne": "Bienvenue, Minder ne répond pas",
   likes: "Mes likes",
   "likes-vide": "Mes likes, encore aucun",
 } as const;

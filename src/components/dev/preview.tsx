@@ -34,8 +34,8 @@ function install(screen: Screen) {
     me: {
       id: "m-muriel",
       email: "muriel@exemple.fr",
-      displayName: screen === "bienvenue" ? null : "Muriel",
-      onboarded: screen !== "bienvenue",
+      displayName: screen.startsWith("bienvenue") ? null : "Muriel",
+      onboarded: !screen.startsWith("bienvenue"),
     } as { id: string; email: string; displayName: string | null; onboarded: boolean },
     voted: new Set<string>(
       screen === "swipe-fini" ? seed().map((i) => i.id) : [],
@@ -82,6 +82,8 @@ function install(screen: Screen) {
     await wait(150);
     const body = init?.body ? JSON.parse(String(init.body)) : {};
     const strip = (i: Item) => ({ ...i, yes: undefined, no: undefined });
+    if (p === "/api/me" && screen === "bienvenue-hors-ligne")
+      return json({ error: "Service indisponible." }, 503);
     if (p === "/api/me") {
       if (method === "PATCH") {
         const name = String(body.displayName || "").trim();
@@ -353,6 +355,7 @@ export function Preview({ screen }: { screen: Screen | null }) {
         </>
       );
     case "bienvenue":
+    case "bienvenue-hors-ligne":
       return (
         <>
           <SiteHeader />

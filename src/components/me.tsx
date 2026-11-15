@@ -35,37 +35,76 @@ export function safePath(value: string | null | undefined, fallback = "/lists") 
 
 // One shared request per page view; set again after the first name changes.
 let me: Me | null | undefined;
+let failed = false;
 let loading: Promise<void> | null = null;
 const listeners = new Set<() => void>();
+const emit = () => listeners.forEach((l) => l());
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+async function ask() {
+  // A network hiccup or a 5xx is not a sign-out: try three times, then say so.
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const r = await fetch("/api/me");
+      if (r.status === 401) {
+        me = null;
+        return;
+      }
+      if (!r.ok) throw new Error(String(r.status));
+      me = (await r.json()) as Me;
+      return;
+    } catch (e) {
+      if (attempt >= 2) throw e;
+      await wait(800 * (attempt + 1));
+    }
+  }
+}
 function load() {
-  loading ??= fetch("/api/me")
-    .then(async (r) => {
-      if (r.status === 401) me = null;
-      else if (r.ok) me = (await r.json()) as Me;
-      else throw new Error(String(r.status));
-    })
+  if (me !== undefined || failed) return loading;
+  loading ??= ask()
     .catch(() => {
-      // A network hiccup is not a sign-out: stay « loading », ask again next time.
-      loading = null;
+      failed = true;
     })
-    .finally(() => listeners.forEach((l) => l()));
+    .finally(() => {
+      loading = null;
+      emit();
+    });
   return loading;
+}
+/** After a failure: ask again (the « Réessayer » button). */
+export function retryMe() {
+  failed = false;
+  emit();
+  void load();
+}
+export function forgetMe() {
+  me = undefined;
+  failed = false;
+  loading = null;
 }
 export function setMe(value: Me) {
   me = value;
-  listeners.forEach((l) => l());
+  failed = false;
+  emit();
 }
 function subscribe(cb: () => void) {
   listeners.add(cb);
   void load();
   return () => listeners.delete(cb);
 }
-/** undefined while loading, null when signed out. */
+/** undefined while loading (or failed), null when signed out. */
 export function useMe() {
   return useSyncExternalStore(
     subscribe,
     () => me,
     () => undefined,
+  );
+}
+/** True when /api/me could not be reached after a few tries. */
+export function useMeFailed() {
+  return useSyncExternalStore(
+    subscribe,
+    () => failed,
+    () => false,
   );
 }
 
@@ -142,8 +181,7 @@ export function UserNav() {
             onClick={() =>
               void logout.run(async () => {
                 await request("/api/auth/logout", "POST");
-                me = null;
-                loading = null;
+                forgetMe();
                 router.push("/");
                 router.refresh();
               })

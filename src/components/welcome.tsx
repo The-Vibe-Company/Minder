@@ -4,7 +4,15 @@ import { useRouter } from "next/navigation";
 import { request } from "@/hooks/use-resource";
 import { useTask } from "@/hooks/use-task";
 import { Notice, Seat } from "./ui";
-import { personName, safePath, setMe, useMe, type Me } from "./me";
+import {
+  personName,
+  retryMe,
+  safePath,
+  setMe,
+  useMe,
+  useMeFailed,
+  type Me,
+} from "./me";
 
 /** Same rule as the API: 1 to 40 characters, no e-mail address. */
 export function nameProblem(value: string) {
@@ -18,6 +26,7 @@ export function nameProblem(value: string) {
 
 export function Welcome({ next, change = false }: { next: string; change?: boolean }) {
   const me = useMe();
+  const failed = useMeFailed();
   const router = useRouter();
   const task = useTask();
   const target = safePath(next);
@@ -126,6 +135,17 @@ export function Welcome({ next, change = false }: { next: string; change?: boole
           </button>
         </form>
         <Notice tone="error">{task.message}</Notice>
+        {failed && me === undefined && (
+          <div role="alert" className="rise mt-4 rounded-2xl bg-alert-soft p-4 text-alert">
+            <p className="font-semibold">
+              Minder ne répond pas pour l’instant. Vérifiez le réseau, puis
+              réessayez.
+            </p>
+            <button className="btn btn-sm mt-3" onClick={retryMe}>
+              Réessayer
+            </button>
+          </div>
+        )}
       </div>
     </main>
   );

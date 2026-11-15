@@ -1,0 +1,583 @@
+@import "tailwindcss";
+
+/*
+ * Minder — « toile » : la grande table de la cuisine, couverte de sa toile
+ * cirée. Cobalt de faïence, blanc d'émail, citron pour ce qui demande un
+ * regard, vert bouteille pour « je le veux ».
+ */
+@theme {
+  --color-cobalt: #2343a6;
+  --color-cobalt-deep: #172d73;
+  --color-ink: #121a3a;
+  --color-enamel: #fdfcf8;
+  --color-faience: #eef1f8;
+  --color-line: #d5dbeb;
+  --color-muted: #4c5577;
+  --color-citron: #ffd84a;
+  --color-bottle: #17704a;
+  --color-bottle-soft: #dcefe4;
+  --color-alert: #b3261e;
+  --color-alert-soft: #fbe4e2;
+  --font-display: var(--font-bricolage), system-ui, sans-serif;
+  --font-sans: var(--font-figtree), system-ui, sans-serif;
+  --radius-card: 22px;
+  --radius-sheet: 28px;
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root {
+  color-scheme: light;
+  --vichy: rgba(35, 67, 166, 0.5);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-enamel);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+    text-wrap: balance;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+    color: inherit;
+  }
+
+  button,
+  [role="button"],
+  a,
+  label[for],
+  summary {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: progress;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-citron);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 6px var(--color-cobalt-deep);
+    border-radius: 6px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 1ms !important;
+      transition-duration: 1ms !important;
+    }
+  }
+}
+
+/* Kit: component classes as Tailwind utilities, so variants (lg:, sm:) still override them. */
+@utility toile {
+  background-color: var(--color-enamel);
+  background-image:
+    linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.55) 0 18%,
+      rgba(255, 255, 255, 0) 34%
+    ),
+    repeating-linear-gradient(
+      90deg,
+      var(--vichy) 0 28px,
+      transparent 28px 56px
+    ),
+    repeating-linear-gradient(0deg, var(--vichy) 0 28px, transparent 28px 56px);
+}
+
+@utility toile-band {
+  height: 14px;
+  background-color: var(--color-enamel);
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      rgba(35, 67, 166, 0.55) 0 14px,
+      transparent 14px 28px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(35, 67, 166, 0.55) 0 7px,
+      transparent 7px 14px
+    );
+}
+
+@utility btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--color-cobalt);
+  color: var(--color-enamel);
+  font-weight: 800;
+  font-size: 15px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color 160ms var(--ease-out-soft),
+    color 160ms var(--ease-out-soft),
+    box-shadow 160ms var(--ease-out-soft),
+    transform 120ms var(--ease-out-soft);
+  &:hover {
+    background: var(--color-cobalt-deep);
+  }
+  /* A firm little press, like a thumb on an enamel button. */
+  &:active:not(:disabled) {
+    transform: scale(0.96);
+  }
+  &:disabled {
+    opacity: 0.6;
+  }
+}
+
+@utility btn-ghost {
+  background: transparent;
+  color: var(--color-cobalt);
+  box-shadow: inset 0 0 0 2px var(--color-cobalt);
+  &:hover {
+    background: var(--color-faience);
+  }
+}
+
+@utility btn-citron {
+  background: var(--color-citron);
+  color: var(--color-ink);
+  &:hover {
+    background: #ffe37a;
+  }
+}
+
+@utility btn-light {
+  background: var(--color-enamel);
+  color: var(--color-cobalt-deep);
+  &:hover {
+    background: var(--color-citron);
+  }
+}
+
+@utility btn-quiet {
+  background: transparent;
+  color: var(--color-ink);
+  box-shadow: inset 0 0 0 2px var(--color-line);
+  &:hover {
+    background: var(--color-faience);
+  }
+}
+
+@utility btn-danger {
+  background: transparent;
+  color: var(--color-alert);
+  font-weight: 700;
+  padding: 0 14px;
+  &:hover {
+    background: var(--color-alert-soft);
+  }
+}
+
+@utility btn-sm {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 14px;
+}
+
+@utility btn-block {
+  width: 100%;
+}
+
+@utility field-label {
+  display: block;
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+@utility field {
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 16px;
+  border: 1.5px solid var(--color-line);
+  border-radius: 14px;
+  background: #fff;
+  font-size: 16px;
+  transition: border-color 160ms var(--ease-out-soft);
+  &:focus-visible {
+    border-color: var(--color-cobalt);
+    box-shadow: none;
+    outline-offset: 1px;
+  }
+  &:is(textarea) {
+    padding: 10px 12px;
+    line-height: 1.4;
+    resize: vertical;
+  }
+  &::placeholder {
+    color: #6b7394;
+  }
+}
+
+@utility chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--color-faience);
+  color: var(--color-cobalt-deep);
+  white-space: nowrap;
+}
+
+@utility chip-citron {
+  background: var(--color-citron);
+  color: var(--color-ink);
+}
+
+@utility chip-bottle {
+  background: var(--color-bottle-soft);
+  color: #0f5636;
+}
+
+@utility chip-alert {
+  background: var(--color-alert-soft);
+  color: var(--color-alert);
+}
+
+@utility kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-cobalt);
+  &::before {
+    content: "";
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    background: currentColor;
+  }
+}
+
+@utility plate {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--seat, var(--color-cobalt));
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+  box-shadow:
+    0 0 0 3px var(--color-enamel),
+    0 0 0 5px var(--seat, var(--color-cobalt));
+}
+
+@utility swipe-card {
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  will-change: transform;
+  &[data-dragging="false"] {
+    transition: transform 260ms var(--ease-out-soft);
+  }
+}
+
+@utility token {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100px;
+  height: 100px;
+  border: 0;
+  border-radius: 50%;
+  font-weight: 800;
+  font-size: 14px;
+  line-height: 1.1;
+  white-space: nowrap;
+  transition:
+    filter 160ms var(--ease-out-soft),
+    transform 160ms var(--ease-out-soft);
+  &:active {
+    transform: scale(0.96);
+  }
+  &:hover {
+    filter: brightness(1.06);
+  }
+  @media (min-width: 900px) {
+    width: 112px;
+    height: 112px;
+    font-size: 15px;
+  }
+}
+
+@utility token-no {
+  background: var(--color-enamel);
+  color: var(--color-ink);
+  box-shadow:
+    0 0 0 6px var(--color-enamel),
+    0 0 0 8px var(--color-ink),
+    0 10px 18px rgba(18, 26, 58, 0.25);
+}
+
+@utility token-yes {
+  background: var(--color-bottle);
+  color: #fff;
+  box-shadow:
+    0 0 0 6px var(--color-enamel),
+    0 0 0 8px var(--color-bottle),
+    0 10px 18px rgba(18, 26, 58, 0.25);
+}
+
+/* ---------- Apparitions ---------- */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise {
+  animation: rise 320ms var(--ease-out-soft) both;
+}
+
+/* ---------- Micro-interactions ---------- */
+@utility press {
+  transition: transform 120ms var(--ease-out-soft);
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+/* Skeleton loaders: the shape of what comes, breathing in opacity only. */
+@keyframes breathe {
+  50% {
+    opacity: 0.55;
+  }
+}
+@utility skeleton {
+  background: var(--color-faience);
+  border-radius: 14px;
+  animation: breathe 1.4s ease-in-out infinite;
+}
+
+@utility chip-draft {
+  background: var(--color-citron);
+  color: var(--color-ink);
+}
+
+/* The stamps that land on a swiped card. */
+@utility stamp {
+  position: absolute;
+  top: 22px;
+  padding: 6px 14px;
+  border: 4px solid currentColor;
+  border-radius: 14px;
+  background: rgba(253, 252, 248, 0.88);
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  line-height: 1;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+}
+.toast-in {
+  animation: toast-in 260ms var(--ease-out-soft) both;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+}
+.pop-in {
+  animation: pop-in 180ms var(--ease-out-soft) both;
+  transform-origin: top right;
+}
+
+/* A card leaving a list: it shrinks and fades, then the grid closes up. */
+@keyframes leave {
+  to {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+.leaving {
+  animation: leave 220ms var(--ease-out-soft) both;
+  pointer-events: none;
+}
+
+/* Just published: a citron ring that fades out. */
+@keyframes fresh {
+  from {
+    box-shadow:
+      0 0 0 3px var(--color-citron),
+      0 12px 26px -12px rgba(18, 26, 58, 0.45);
+  }
+}
+.fresh {
+  animation: fresh 1600ms ease-out both;
+}
+
+/* Light confetti: a few faience and citron crumbs that fly off and fade. */
+@keyframes crumb {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(0) translate(0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--a)) translate(0, var(--d))
+      scale(0.6);
+  }
+}
+.crumb {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+  pointer-events: none;
+  animation: crumb 700ms var(--ease-out-soft) both;
+}
+
+/* The heart that pops on a « je le veux ». */
+@keyframes heart-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.4);
+  }
+  35% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.15);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -90%) scale(1);
+  }
+}
+.heart-pop {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  pointer-events: none;
+  animation: heart-pop 620ms var(--ease-out-soft) both;
+}
+
+/* The landing card sways a little, as if a thumb was about to push it. */
+@keyframes sway {
+  0%,
+  100% {
+    transform: rotate(-2deg) translateX(0);
+  }
+  50% {
+    transform: rotate(1.5deg) translateX(10px);
+  }
+}
+.sway {
+  animation: sway 5s ease-in-out infinite;
+}
+
+/* A card brought back by « Annuler » slides in from where it left. */
+@keyframes card-back-right {
+  from {
+    transform: translateX(110%) rotate(18deg);
+    opacity: 0;
+  }
+}
+@keyframes card-back-left {
+  from {
+    transform: translateX(-110%) rotate(-18deg);
+    opacity: 0;
+  }
+}
+.card-back-right {
+  animation: card-back-right 420ms var(--ease-out-soft) backwards;
+}
+.card-back-left {
+  animation: card-back-left 420ms var(--ease-out-soft) backwards;
+}
+
+dialog.sheet {
+  width: min(520px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  margin: auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sheet);
+  background: var(--color-enamel);
+  color: var(--color-ink);
+  box-shadow: 0 30px 60px -20px rgba(18, 26, 58, 0.6);
+  &[open] {
+    animation: pop-in 220ms var(--ease-out-soft) both;
+    transform-origin: center;
+  }
+  &::backdrop {
+    background: rgba(18, 26, 58, 0.55);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crumb,
+  .heart-pop {
+    display: none;
+  }
+  .sway,
+  .skeleton {
+    animation: none;
+  }
+  .btn:active,
+  .press:active {
+    transform: none;
+  }
+}

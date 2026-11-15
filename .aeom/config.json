@@ -1,0 +1,6 @@
+{
+  "url": "http://localhost:4310",
+  "start": "pnpm build && PORT=4310 pnpm start",
+  "widths": [390, 1280],
+  "protected": ["src/app/api/**", "src/lib/api.ts", "src/lib/ai.ts", "src/lib/supabase/**", "src/lib/database.types.ts", "src/proxy.ts", "supabase/**"]
+}

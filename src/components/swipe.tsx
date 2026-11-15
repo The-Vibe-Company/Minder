@@ -43,8 +43,16 @@ export function Swipe({ id }: { id: string }) {
       "(prefers-reduced-motion: reduce)",
     ).matches;
     setDrag({ x: 0, active: false, leaving: choice === "yes" ? 1 : -1 });
+    // The request may fail before the card has left: then nothing is applied.
+    const outcome = { applied: false, failed: false };
     setTimeout(
       () => {
+        if (outcome.failed) {
+          setDrag({ x: 0, active: false, leaving: 0 });
+          busy.current = false;
+          return;
+        }
+        outcome.applied = true;
         setAnswered((a) => [...a, item.id]);
         setHistory((h) => [...h, { item, choice }]);
         setCount((c) => ({ ...c, [choice]: c[choice] + 1 }));
@@ -57,9 +65,12 @@ export function Swipe({ id }: { id: string }) {
     chain.current = chain.current.then(() =>
       request(`/api/items/${item.id}/vote`, "POST", { choice }).catch(
         (e: Error) => {
-          setAnswered((a) => a.filter((x) => x !== item.id));
-          setHistory((h) => h.filter((x) => x.item.id !== item.id));
-          setCount((c) => ({ ...c, [choice]: Math.max(0, c[choice] - 1) }));
+          outcome.failed = true;
+          if (outcome.applied) {
+            setAnswered((a) => a.filter((x) => x !== item.id));
+            setHistory((h) => h.filter((x) => x.item.id !== item.id));
+            setCount((c) => ({ ...c, [choice]: Math.max(0, c[choice] - 1) }));
+          }
           setMessage(`${e.message} Votre choix n’a pas été gardé.`);
         },
       ),
@@ -295,8 +306,8 @@ export function Swipe({ id }: { id: string }) {
             Tout vu.
           </h2>
           <p className="mx-auto mt-2 mb-5 max-w-[30em] text-muted">
-            Vous avez fait le tour de la table. Muriel photographie peut-être
-            encore : revenez quand elle aura posé d’autres objets.
+            Vous avez fait le tour de la table. D’autres objets arriveront
+            peut-être : revenez faire un tour dans quelques jours.
           </p>
           {count.yes + count.no > 0 && (
             <p className="mb-6 flex flex-wrap justify-center gap-2.5">

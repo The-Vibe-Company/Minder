@@ -6,7 +6,7 @@ import { useTask } from "@/hooks/use-task";
 import { Loading, Mug, Notice } from "./ui";
 
 export function Invite({ token }: { token: string }) {
-  const { data, error } = useResource<{
+  const { data, error, refresh } = useResource<{
     invite: { list_title: string; owner_name: string; expired: boolean } | null;
   }>(`/api/invite/${encodeURIComponent(token)}`);
   const task = useTask();
@@ -103,7 +103,23 @@ export function Invite({ token }: { token: string }) {
             <Notice tone="error">{task.message}</Notice>
           </>
         )}
-        {(error || (data && !valid)) && (
+        {error && !data && (
+          <>
+            <Mug />
+            <h1 className="mt-3 text-[30px] font-extrabold">
+              Minder ne répond pas
+            </h1>
+            <p className="mt-3 text-[17px] text-muted">
+              Votre invitation est peut-être très bien : c’est la connexion qui
+              coince. Vérifiez le réseau, puis réessayez.
+            </p>
+            <Notice tone="error">{error}</Notice>
+            <button className="btn mt-3" onClick={() => void refresh()}>
+              Réessayer
+            </button>
+          </>
+        )}
+        {data && !valid && (
           <>
             <Mug />
             <h1 className="mt-3 text-[30px] font-extrabold">

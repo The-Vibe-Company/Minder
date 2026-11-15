@@ -108,39 +108,41 @@ export function Search({ id }: { id: string }) {
             par mots, c’est déjà pas mal.
           </Notice>
         )}
-        {results && (
-          <section aria-live="polite" className="mt-6">
-            <h2 className="text-[20px] font-bold">
-              {results.items.length
-                ? `${results.items.length} objet${results.items.length > 1 ? "s" : ""} pour « ${results.q} »`
-                : `Rien pour « ${results.q} »`}
-            </h2>
-            {results.items.length === 0 && (
-              <p className="mt-1 text-muted">
-                Essayez un mot plus court : « lampe » plutôt que « lampe de
-                chevet ».
-              </p>
-            )}
-            <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {results.items.map((item) => (
-                <li
-                  key={item.id}
-                  className="rounded-[22px] bg-white p-2 shadow-[0_0_0_1.5px_var(--color-line)]"
-                >
-                  <div className="aspect-square overflow-hidden rounded-[14px]">
-                    <Photo item={item} />
-                  </div>
-                  <p className="mt-2 truncate px-1 text-[15px] font-bold">
-                    {itemName(item)}
-                  </p>
-                  <p className="line-clamp-2 px-1 pb-1 text-[13px] text-muted">
-                    {item.description || "Sans description"}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+        <section aria-live="polite" className="mt-6">
+          {results && (
+            <>
+              <h2 className="text-[20px] font-bold">
+                {results.items.length
+                  ? `${results.items.length} objet${results.items.length > 1 ? "s" : ""} pour « ${results.q} »`
+                  : `Rien pour « ${results.q} »`}
+              </h2>
+              {results.items.length === 0 && (
+                <p className="mt-1 text-muted">
+                  Essayez un mot plus court : « lampe » plutôt que « lampe de
+                  chevet ».
+                </p>
+              )}
+              <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {results.items.map((item) => (
+                  <li
+                    key={item.id}
+                    className="rounded-[22px] bg-white p-2 shadow-[0_0_0_1.5px_var(--color-line)]"
+                  >
+                    <div className="aspect-square overflow-hidden rounded-[14px]">
+                      <Photo item={item} />
+                    </div>
+                    <p className="mt-2 truncate px-1 text-[15px] font-bold">
+                      {itemName(item)}
+                    </p>
+                    <p className="line-clamp-2 px-1 pb-1 text-[13px] text-muted">
+                      {item.description || "Sans description"}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </section>
       </div>
     </ListShell>
   );

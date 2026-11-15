@@ -171,6 +171,11 @@ function Upload({
   send: Uploader;
 }) {
   const [rows, setRows] = useState<Row[]>([]);
+  const previews = useRef<string[]>([]);
+  useEffect(
+    () => () => previews.current.forEach((u) => URL.revokeObjectURL(u)),
+    [],
+  );
   const [over, setOver] = useState(false);
   const next = useRef(0);
   const running = useRef(false);
@@ -190,13 +195,18 @@ function Upload({
     running.current = false;
   }
 
+  function track(url: string) {
+    previews.current.push(url);
+    return url;
+  }
+
   function add(files: File[]) {
     const fresh = files
       .filter((f) => /^image\/(jpeg|png|webp)$/.test(f.type))
       .map((file) => ({
         key: next.current++,
         file,
-        preview: URL.createObjectURL(file),
+        preview: track(URL.createObjectURL(file)),
         step: "waiting" as UploadStep,
       }));
     if (!fresh.length) return;
@@ -354,6 +364,18 @@ function useCanShare() {
     () => false,
   );
 }
+// Same origin as the server's invite links: the public site URL when set.
+function siteOrigin() {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL;
+  if (configured) {
+    try {
+      return new URL(configured).origin;
+    } catch {
+      /* fall back to this page's origin */
+    }
+  }
+  return typeof window === "undefined" ? "" : window.location.origin;
+}
 const dateFr = (d: string) =>
   new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
 
@@ -372,7 +394,7 @@ function Invites({ id, title }: { id: string; title: string }) {
   const url = current
     ? created?.id === current.id
       ? created.url
-      : `${typeof window === "undefined" ? "" : window.location.origin}/invite/${current.token}`
+      : `${siteOrigin()}/invite/${current.token}`
     : undefined;
   const others = data?.invites.filter((i) => i.id !== current?.id) ?? [];
 
@@ -520,14 +542,16 @@ function Invites({ id, title }: { id: string; title: string }) {
               >
                 <span className="min-w-0">
                   <span className="block truncate text-[14px] font-bold">
-                    Lien du {dateFr(i.expires_at)}
+                    {i.revoked_at
+                      ? `Révoqué le ${dateFr(i.revoked_at)}`
+                      : active(i)
+                        ? `Valable jusqu’au ${dateFr(i.expires_at)}`
+                        : `Expiré le ${dateFr(i.expires_at)}`}
                   </span>
                   <span className="block text-[12px] text-[#d7def5]">
-                    {i.revoked_at
-                      ? "Révoqué"
-                      : active(i)
-                        ? "Toujours actif"
-                        : "Expiré"}
+                    {i.revoked_at || !active(i)
+                      ? "Ne fonctionne plus"
+                      : "Fonctionne encore"}
                   </span>
                 </span>
                 {!i.revoked_at && active(i) && (

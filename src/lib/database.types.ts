@@ -21,9 +21,13 @@ export type Invite = {
   list_id: string;
   token: string;
   created_by: string;
-  expires_at: string;
+  expires_at: string | null;
   revoked_at: string | null;
   created_at: string;
+};
+export type EmailInvite = {
+  id: string; list_id: string; email: string; invited_by: string;
+  created_at: string; accepted_at: string | null; accepted_by: string | null;
 };
 export type Item = {
   id: string;
@@ -62,6 +66,7 @@ export type Database = {
       lists: Table<List, "title">;
       list_members: Table<Member, "list_id" | "user_id" | "role">;
       invites: Table<Invite, "list_id">;
+      list_email_invites: Table<EmailInvite, "list_id" | "email">;
       items: Table<Item, "list_id" | "photo_path">;
       votes: Table<Vote, "item_id" | "list_id" | "choice">;
     };
@@ -69,6 +74,8 @@ export type Database = {
     Enums: Record<never, never>;
     CompositeTypes: Record<never, never>;
     Functions: {
+      rotate_share_link: { Args: { p_list_id: string }; Returns: Invite };
+      claim_email_invites: { Args: Record<string, never>; Returns: number };
       invite_preview: {
         Args: { p_token: string };
         Returns: {

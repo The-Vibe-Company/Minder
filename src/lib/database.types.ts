@@ -1,6 +1,7 @@
 export type Profile = {
   id: string;
   display_name: string | null;
+  onboarded_at: string | null;
   avatar_url: string | null;
   created_at: string;
 };
@@ -33,6 +34,8 @@ export type Item = {
   id: string;
   list_id: string;
   created_by: string;
+  status: "draft" | "published";
+  published_at: string | null;
   photo_path: string;
   title: string | null;
   description: string | null;

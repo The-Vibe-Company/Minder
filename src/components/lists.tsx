@@ -1,9 +1,10 @@
 "use client";
 import Link from "next/link";
+import { useRef } from "react";
 import { useResource, request } from "@/hooks/use-resource";
 import { useTask } from "@/hooks/use-task";
 import { Mug, Notice } from "./ui";
-import { IconArrow, IconPlus } from "./icons";
+import { IconArrow, IconMail, IconPlus, IconShare } from "./icons";
 
 type List = {
   id: string;
@@ -17,9 +18,26 @@ function plural(n: number, one: string, many: string) {
   return `${n} ${n > 1 ? many : one}`;
 }
 
+// One list per family event: a few starters for the name field.
+const EVENTS = [
+  "Déménagement",
+  "Achat de la maison",
+  "Vide-maison",
+  "Succession",
+];
+
 export function Lists() {
   const { data, error, refresh } = useResource<{ lists: List[] }>("/api/lists");
   const task = useTask();
+  const field = useRef<HTMLInputElement>(null);
+  const start = (name?: string) => {
+    const input = field.current;
+    if (!input) return;
+    if (name) input.value = `${name} · `;
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  };
+  const empty = data?.lists.length === 0;
   const create = (
     <form
       className="rounded-[22px] bg-white p-5 shadow-[0_0_0_1.5px_var(--color-line)]"
@@ -34,22 +52,41 @@ export function Lists() {
         });
       }}
     >
-      <h2 className="text-[22px] font-bold">Une nouvelle liste</h2>
+      <h2 className="text-[22px] font-bold">Nouvelle liste</h2>
       <p className="mt-1 text-[15px] text-muted">
-        Une maison, une liste. Vous inviterez la famille juste après.
+        Une liste par événement, autant qu’il vous en faut. Vous inviterez les
+        proches concernés juste après.
       </p>
       <label htmlFor="title" className="field-label mt-4">
         Nom de la liste
       </label>
       <input
+        ref={field}
         id="title"
         className="field"
         name="title"
         required
         maxLength={120}
-        placeholder="La maison de Rennes"
+        placeholder="Déménagement à Rennes"
+        aria-describedby="idees"
       />
-      <button className="btn btn-block mt-3" disabled={task.busy}>
+      <p id="idees" className="mt-3 text-[13px] font-bold text-muted">
+        Des idées pour commencer :
+      </p>
+      <ul className="mt-1.5 flex flex-wrap gap-1.5">
+        {EVENTS.map((name) => (
+          <li key={name}>
+            <button
+              type="button"
+              className="min-h-11 rounded-full bg-faience px-3.5 text-[14px] font-bold text-cobalt-deep transition-colors hover:bg-[#e3e8f6]"
+              onClick={() => start(name)}
+            >
+              {name}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <button className="btn btn-block mt-4" disabled={task.busy}>
         <IconPlus />
         {task.busy ? "Création…" : "Créer la liste"}
       </button>
@@ -65,6 +102,12 @@ export function Lists() {
         >
           Mes listes
         </h1>
+        {data && data.lists.length > 0 && (
+          <p className="mt-1 text-[15px] text-muted">
+            {plural(data.lists.length, "liste", "listes")} · un déménagement,
+            une succession, un vide-maison… chacun a la sienne.
+          </p>
+        )}
         <Notice tone="error">{error}</Notice>
         {!data && !error && (
           <ul aria-hidden="true" className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -76,14 +119,61 @@ export function Lists() {
             ))}
           </ul>
         )}
-        {data && data.lists.length === 0 && (
-          <div className="mt-6 rounded-[28px] bg-faience px-6 py-10 text-center">
+        {empty && (
+          <div className="mt-6 rounded-[28px] bg-faience px-5 py-8 lg:px-8 lg:py-10">
             <Mug />
-            <h2 className="mt-4 text-[26px] font-bold">La table est vide</h2>
-            <p className="mx-auto mt-2 max-w-[30em] text-muted">
-              Créez la liste de la maison, ou ouvrez le lien d’invitation qu’on
-              vous a envoyé : la liste apparaîtra ici.
+            <h2 className="mt-4 text-center text-[26px] font-bold">
+              Vous n’avez pas encore de liste
+            </h2>
+            <p className="mx-auto mt-2 max-w-[32em] text-center text-muted">
+              Une liste rassemble les objets d’un événement : un déménagement,
+              l’achat d’une maison, un vide-maison, une succession… Trois façons
+              de vous mettre à table :
             </p>
+            <ol className="mx-auto mt-6 grid max-w-[36em] gap-3">
+              <li className="flex gap-3 rounded-[18px] bg-white p-4 shadow-[0_0_0_1.5px_var(--color-line)]">
+                <span className="grid size-10 flex-none place-items-center rounded-full bg-cobalt text-enamel">
+                  <IconPlus size={20} />
+                </span>
+                <span className="min-w-0">
+                  <strong className="block">Créer une liste</strong>
+                  <span className="text-[15px] text-muted">
+                    Donnez-lui le nom de l’événement, puis invitez la famille.
+                  </span>
+                  <button
+                    type="button"
+                    className="mt-1 block min-h-11 font-bold text-cobalt underline underline-offset-4 lg:hidden"
+                    onClick={() => start()}
+                  >
+                    Créer ma première liste
+                  </button>
+                </span>
+              </li>
+              <li className="flex gap-3 rounded-[18px] bg-white p-4 shadow-[0_0_0_1.5px_var(--color-line)]">
+                <span className="grid size-10 flex-none place-items-center rounded-full bg-citron text-ink">
+                  <IconShare size={20} />
+                </span>
+                <span className="min-w-0">
+                  <strong className="block">Ouvrir un lien de partage</strong>
+                  <span className="text-[15px] text-muted">
+                    Un proche vous a envoyé un lien ? Ouvrez-le : la liste
+                    apparaîtra ici.
+                  </span>
+                </span>
+              </li>
+              <li className="flex gap-3 rounded-[18px] bg-white p-4 shadow-[0_0_0_1.5px_var(--color-line)]">
+                <span className="grid size-10 flex-none place-items-center rounded-full bg-bottle-soft text-[#0f5636]">
+                  <IconMail size={20} />
+                </span>
+                <span className="min-w-0">
+                  <strong className="block">Recevoir une invitation</strong>
+                  <span className="text-[15px] text-muted">
+                    Invité·e par e-mail ? Connectez-vous avec cette adresse : la
+                    liste s’ajoute ici toute seule.
+                  </span>
+                </span>
+              </li>
+            </ol>
           </div>
         )}
         <ul className="mt-6 grid gap-4 sm:grid-cols-2">

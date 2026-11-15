@@ -30,18 +30,26 @@ function install(screen: Screen) {
     voted: new Set<string>(
       screen === "swipe-fini" ? seed().map((i) => i.id) : [],
     ),
-    invites: [
+    shareLink: {
+      id: "inv-2",
+      token: "b".repeat(64),
+      url: `${location.origin}/invite/${"b".repeat(64)}`,
+      created_at: "2026-11-09T10:00:00Z",
+    } as null | { id: string; token: string; url: string; created_at: string },
+    emailInvites: [
       {
-        id: "inv-2",
-        token: "b".repeat(64),
-        revoked_at: null as string | null,
-        expires_at: "2026-12-09T10:00:00Z",
+        id: "em-2",
+        list_id: LIST_ID,
+        email: "thomas.lebrun@exemple.fr",
+        created_at: "2026-11-12T10:00:00Z",
+        accepted_at: null as string | null,
       },
       {
-        id: "inv-1",
-        token: "c".repeat(64),
-        revoked_at: "2026-11-02T10:00:00Z" as string | null,
-        expires_at: "2026-11-30T10:00:00Z",
+        id: "em-1",
+        list_id: LIST_ID,
+        email: "claire@exemple.fr",
+        created_at: "2026-11-10T10:00:00Z",
+        accepted_at: "2026-11-10T18:00:00Z" as string | null,
       },
     ],
   };
@@ -64,29 +72,32 @@ function install(screen: Screen) {
     const strip = (i: Item) => ({ ...i, yes: undefined, no: undefined });
     if (p === "/api/lists")
       return json({
-        lists: [
-          {
-            id: LIST_ID,
-            title: "La maison de Rennes",
-            role: "owner",
-            itemCount: 47,
-            remainingCount: 12,
-          },
-          {
-            id: "l2",
-            title: "Le grenier de Mamie Jeanne",
-            role: "member",
-            itemCount: 18,
-            remainingCount: 0,
-          },
-          {
-            id: "l3",
-            title: "L’appartement de la rue Saint-Malo",
-            role: "member",
-            itemCount: 9,
-            remainingCount: 9,
-          },
-        ],
+        lists:
+          screen === "lists-vide"
+            ? []
+            : [
+                {
+                  id: LIST_ID,
+                  title: "La maison de Rennes",
+                  role: "owner",
+                  itemCount: 47,
+                  remainingCount: 12,
+                },
+                {
+                  id: "l2",
+                  title: "Succession de Mamie Jeanne",
+                  role: "member",
+                  itemCount: 18,
+                  remainingCount: 0,
+                },
+                {
+                  id: "l3",
+                  title: "Vide-maison, rue Saint-Malo",
+                  role: "member",
+                  itemCount: 9,
+                  remainingCount: 9,
+                },
+              ],
       });
     if (p === `/api/lists/${LIST_ID}`)
       return json({
@@ -96,24 +107,49 @@ function install(screen: Screen) {
       });
     if (p === `/api/lists/${LIST_ID}/invites`) {
       if (method === "POST") {
-        const inv = {
+        const token = Date.now().toString(16).padStart(64, "d").slice(-64);
+        state.shareLink = {
           id: `inv-${Date.now()}`,
-          token: "d".repeat(64),
-          revoked_at: null,
-          expires_at: "2026-12-15T10:00:00Z",
+          token,
+          url: `${location.origin}/invite/${token}`,
+          created_at: new Date().toISOString(),
         };
-        state.invites.unshift(inv);
+        return json({ invite: state.shareLink, url: state.shareLink.url }, 201);
+      }
+      return json({
+        invites: [],
+        shareLink: state.shareLink,
+        emailInvites: state.emailInvites,
+      });
+    }
+    if (p.match(/^\/api\/invites\/(.+)$/)) {
+      state.shareLink = null;
+      return json({ ok: true });
+    }
+    if (p === `/api/lists/${LIST_ID}/email-invites`) {
+      if (method === "POST") {
+        // An address containing "echec" stands for an e-mail that could not leave.
+        const email = String(body.email).trim().toLowerCase();
+        const found = state.emailInvites.find((i) => i.email === email);
+        const invite = found ?? {
+          id: `em-${Date.now()}`,
+          list_id: LIST_ID,
+          email,
+          created_at: new Date().toISOString(),
+          accepted_at: null,
+        };
+        if (!found) state.emailInvites.unshift(invite);
         return json(
-          { invite: inv, url: `${location.origin}/invite/${inv.token}` },
-          201,
+          { invite, emailSent: !email.includes("echec") },
+          found ? 200 : 201,
         );
       }
-      return json({ invites: state.invites });
+      return json({ emailInvites: state.emailInvites });
     }
-    const invite = p.match(/^\/api\/invites\/(.+)$/);
-    if (invite) {
-      state.invites = state.invites.map((i) =>
-        i.id === invite[1] ? { ...i, revoked_at: new Date().toISOString() } : i,
+    const emailInvite = p.match(/^\/api\/lists\/[^/]+\/email-invites\/(.+)$/);
+    if (emailInvite) {
+      state.emailInvites = state.emailInvites.filter(
+        (i) => i.id !== emailInvite[1],
       );
       return json({ ok: true });
     }
@@ -234,6 +270,7 @@ export function Preview({ screen }: { screen: Screen | null }) {
   if (!ready) return null;
   switch (screen) {
     case "lists":
+    case "lists-vide":
       return (
         <>
           <SiteHeader />

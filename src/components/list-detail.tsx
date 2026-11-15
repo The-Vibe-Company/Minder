@@ -20,7 +20,14 @@ import {
   itemName,
   rememberList,
 } from "./ui";
-import { IconArrow, IconCards, IconCopy, IconPlus, IconShare } from "./icons";
+import {
+  IconArrow,
+  IconCards,
+  IconCopy,
+  IconMail,
+  IconPlus,
+  IconShare,
+} from "./icons";
 
 function plural(n: number, one: string, many: string) {
   return `${n} ${n > 1 ? many : one}`;
@@ -127,7 +134,7 @@ function Editor({
             className="btn btn-danger btn-sm"
             disabled={task.busy}
             onClick={() => {
-              if (confirm("Supprimer cet objet et sa photo ?"))
+              if (confirm("Supprimer cet objet et sa photo ?"))
                 void task.run(async () => {
                   await request(`/api/items/${item.id}`, "DELETE");
                   await refresh();
@@ -348,12 +355,13 @@ function Upload({
   );
 }
 
-/* ---------- Une place de plus à table : l'invitation ---------- */
-type Invite = {
+/* ---------- Une place de plus à table : le lien et les invitations ---------- */
+type ShareLink = { id: string; token: string; url: string; created_at: string };
+type EmailInvite = {
   id: string;
-  token: string;
-  revoked_at: string | null;
-  expires_at: string;
+  email: string;
+  created_at: string;
+  accepted_at: string | null;
 };
 const noop = () => () => {};
 function useCanShare() {
@@ -364,41 +372,30 @@ function useCanShare() {
     () => false,
   );
 }
-// Same origin as the server's invite links: the public site URL when set.
-function siteOrigin() {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL;
-  // On a Vercel preview, stay on the preview, as the server does.
-  const preview = process.env.NEXT_PUBLIC_VERCEL_ENV === "preview";
-  if (configured && !preview) {
-    try {
-      return new URL(configured).origin;
-    } catch {
-      /* fall back to this page's origin */
-    }
-  }
-  return typeof window === "undefined" ? "" : window.location.origin;
-}
-const dateFr = (d: string) =>
-  new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+const outline =
+  "btn btn-sm bg-transparent text-enamel shadow-[inset_0_0_0_2px_rgba(255,255,255,.6)] hover:bg-white/10";
+const textButton =
+  "min-h-11 text-[14px] font-bold text-[#d7def5] underline underline-offset-4 hover:text-enamel disabled:opacity-60";
 
 function Invites({ id, title }: { id: string; title: string }) {
-  const { data, error, refresh } = useResource<{ invites: Invite[] }>(
-    `/api/lists/${id}/invites`,
-  );
-  const task = useTask();
-  const [created, setCreated] = useState<{ id: string; url: string }>();
+  const { data, error, refresh } = useResource<{
+    shareLink: ShareLink | null;
+    emailInvites: EmailInvite[];
+  }>(`/api/lists/${id}/invites`);
+  const link = useTask();
+  const mail = useTask();
+  const [linkNote, setLinkNote] = useState("");
+  const [mailNote, setMailNote] = useState<{
+    tone: "ok" | "info";
+    text: string;
+  }>();
   const [copied, setCopied] = useState(false);
   const canShare = useCanShare();
-  const [now] = useState(() => Date.now());
-  const active = (i: Invite) =>
-    !i.revoked_at && new Date(i.expires_at).getTime() > now;
-  const current = data?.invites.find(active);
-  const url = current
-    ? created?.id === current.id
-      ? created.url
-      : `${siteOrigin()}/invite/${current.token}`
-    : undefined;
-  const others = data?.invites.filter((i) => i.id !== current?.id) ?? [];
+  const share = data?.shareLink ?? null;
+  const url = share?.url;
+  const pitch = `On se partage les objets de « ${title} ». Dites ce que vous voulez garder :`;
+  const invites = data?.emailInvites ?? [];
+  const waiting = invites.filter((i) => !i.accepted_at).length;
 
   async function copy() {
     if (!url) return;
@@ -407,9 +404,45 @@ function Invites({ id, title }: { id: string; title: string }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      task.setMessage("Copie impossible : sélectionnez le lien à la main.");
+      link.setMessage("Copie impossible : sélectionnez le lien à la main.");
     }
   }
+  const rotate = (confirmFirst: boolean) => {
+    if (
+      confirmFirst &&
+      !confirm(
+        "Régénérer le lien ? L’ancien lien cessera de fonctionner : il faudra renvoyer le nouveau.",
+      )
+    )
+      return;
+    setLinkNote("");
+    setMailNote(undefined);
+    void link.run(async () => {
+      await request(`/api/lists/${id}/invites`, "POST");
+      await refresh();
+      setLinkNote(
+        confirmFirst
+          ? "Nouveau lien prêt. L’ancien ne fonctionne plus."
+          : "Lien prêt : envoyez-le à la famille.",
+      );
+    });
+  };
+  const revoke = () => {
+    if (!share) return;
+    if (
+      !confirm(
+        "Révoquer le lien ? Plus personne ne pourra rejoindre la liste avec. Les proches déjà à table la gardent.",
+      )
+    )
+      return;
+    setLinkNote("");
+    setMailNote(undefined);
+    void link.run(async () => {
+      await request(`/api/invites/${share.id}`, "DELETE");
+      await refresh();
+      setLinkNote("Lien révoqué. Créez-en un nouveau quand vous voulez.");
+    });
+  };
 
   return (
     <section
@@ -456,139 +489,213 @@ function Invites({ id, title }: { id: string; title: string }) {
         </div>
       </div>
       <Notice tone="error">{error}</Notice>
-      {url ? (
-        <div className="mt-4 rounded-[18px] bg-cobalt-deep p-3">
-          <label
-            htmlFor="lien"
-            className="text-[12px] font-extrabold tracking-[.06em] text-citron uppercase"
-          >
-            Lien actif · jusqu’au {dateFr(current!.expires_at)}
-          </label>
-          <input
-            id="lien"
-            readOnly
-            value={url}
-            onFocus={(e) => e.currentTarget.select()}
-            className="mt-1.5 mb-2.5 block min-h-11 w-full truncate rounded-[10px] bg-white/10 px-3 text-[16px] text-enamel"
-          />
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              className="btn btn-citron btn-sm"
-              onClick={() => void copy()}
-            >
-              <IconCopy />
-              {copied ? "Copié !" : "Copier"}
-            </button>
-            {canShare ? (
+
+      {data && (
+        <div className="mt-4">
+          <h3 className="text-[12px] font-extrabold tracking-[.06em] text-citron uppercase">
+            Lien de partage
+          </h3>
+          {url ? (
+            <div className="mt-2 rounded-[18px] bg-cobalt-deep p-3">
+              <label htmlFor="lien" className="text-[14px] text-[#d7def5]">
+                Valable tant que vous ne le changez pas. Toute personne qui
+                l’ouvre peut rejoindre la liste.
+              </label>
+              <input
+                id="lien"
+                readOnly
+                value={url}
+                onFocus={(e) => e.currentTarget.select()}
+                className="mt-2 mb-2.5 block min-h-11 w-full truncate rounded-[10px] bg-white/10 px-3 text-[16px] text-enamel"
+              />
               <button
-                className="btn btn-sm bg-transparent text-enamel shadow-[inset_0_0_0_2px_rgba(255,255,255,.6)] hover:bg-white/10"
-                onClick={() =>
-                  void navigator
-                    .share({
-                      title: `${title} · Minder`,
-                      text: `On se partage les objets de « ${title} ». Dites ce que vous voulez garder :`,
-                      url,
-                    })
-                    .catch(() => {})
-                }
+                className="btn btn-citron btn-sm w-full"
+                onClick={() => void copy()}
               >
-                <IconShare />
-                Partager
+                <IconCopy />
+                {copied ? "Copié !" : "Copier le lien"}
               </button>
-            ) : (
-              <a
-                className="btn btn-sm bg-transparent text-enamel shadow-[inset_0_0_0_2px_rgba(255,255,255,.6)] hover:bg-white/10"
-                href={`mailto:?subject=${encodeURIComponent(`${title} · Minder`)}&body=${encodeURIComponent(`On se partage les objets de « ${title} ». Dites ce que vous voulez garder : ${url}`)}`}
+              <div
+                className={`mt-2 grid gap-2 ${canShare ? "grid-cols-2" : ""}`}
               >
-                <IconShare />
-                Par e-mail
-              </a>
-            )}
-          </div>
-        </div>
-      ) : (
-        data && (
-          <p className="mt-4 text-[15px] text-[#d7def5]">
-            Créez un lien, envoyez-le à la famille : chacun le rejoint avec son
-            e-mail.
-          </p>
-        )
-      )}
-      <button
-        className={`btn btn-sm mt-3 w-full ${url ? "bg-transparent text-enamel shadow-[inset_0_0_0_2px_rgba(255,255,255,.35)] hover:bg-white/10" : "btn-light"}`}
-        disabled={task.busy}
-        onClick={() =>
-          void task.run(async () => {
-            const r = await request<{ invite: { id: string }; url: string }>(
-              `/api/lists/${id}/invites`,
-              "POST",
-            );
-            setCreated({ id: r.invite.id, url: r.url });
-            await refresh();
-          })
-        }
-      >
-        {current ? "Créer un nouveau lien" : "Créer un lien à partager"}
-      </button>
-      <Notice tone="error">{task.message}</Notice>
-      {others.length > 0 && (
-        <details className="mt-2 group">
-          <summary className="flex min-h-11 items-center text-[14px] font-bold text-[#d7def5] hover:text-enamel">
-            Anciens liens ({others.length})
-          </summary>
-          <ul className="mt-1">
-            {others.map((i) => (
-              <li
-                key={i.id}
-                className="grid grid-cols-[1fr_auto] items-center gap-2.5 border-t border-white/20 py-2"
-              >
-                <span className="min-w-0">
-                  <span className="block truncate text-[14px] font-bold">
-                    {i.revoked_at
-                      ? `Révoqué le ${dateFr(i.revoked_at)}`
-                      : active(i)
-                        ? `Valable jusqu’au ${dateFr(i.expires_at)}`
-                        : `Expiré le ${dateFr(i.expires_at)}`}
-                  </span>
-                  <span className="block text-[12px] text-[#d7def5]">
-                    {i.revoked_at || !active(i)
-                      ? "Ne fonctionne plus"
-                      : "Fonctionne encore"}
-                  </span>
-                </span>
-                {!i.revoked_at && active(i) && (
+                {canShare && (
                   <button
-                    className="btn btn-sm bg-white/12 text-[13px] text-enamel hover:bg-white/22"
-                    disabled={task.busy}
+                    className={outline}
                     onClick={() =>
-                      void task.run(async () => {
-                        await request(`/api/invites/${i.id}`, "DELETE");
-                        await refresh();
-                      })
+                      void navigator
+                        .share({ title: `${title} · Minder`, text: pitch, url })
+                        .catch(() => {})
                     }
                   >
-                    Révoquer
+                    <IconShare />
+                    Partager
                   </button>
                 )}
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-      {current && (
-        <button
-          className="mt-1 min-h-11 text-[13px] font-bold text-[#d7def5] underline underline-offset-4 hover:text-enamel"
-          disabled={task.busy}
-          onClick={() =>
-            void task.run(async () => {
-              await request(`/api/invites/${current.id}`, "DELETE");
-              setCreated(undefined);
-              await refresh();
-            })
-          }
-        >
-          Révoquer le lien actif
-        </button>
+                <a
+                  className={outline}
+                  href={`mailto:?subject=${encodeURIComponent(`${title} · Minder`)}&body=${encodeURIComponent(`${pitch} ${url}`)}`}
+                >
+                  <IconMail />
+                  Par e-mail
+                </a>
+              </div>
+              <div className="mt-1 flex flex-wrap gap-x-5">
+                <button
+                  className={textButton}
+                  disabled={link.busy}
+                  onClick={() => rotate(true)}
+                >
+                  Régénérer le lien
+                </button>
+                <button
+                  className={textButton}
+                  disabled={link.busy}
+                  onClick={revoke}
+                >
+                  Révoquer le lien
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <p className="mt-2 text-[15px] text-[#d7def5]">
+                Un seul lien pour toute la liste, sans date limite : chacun le
+                rejoint avec son e-mail.
+              </p>
+              <button
+                className="btn btn-light btn-sm mt-3 w-full"
+                disabled={link.busy}
+                onClick={() => rotate(false)}
+              >
+                {link.busy ? "Un instant…" : "Créer le lien de partage"}
+              </button>
+            </>
+          )}
+          <Notice tone="error">{link.message}</Notice>
+          {!link.message && linkNote && <Notice tone="ok">{linkNote}</Notice>}
+
+          <form
+            className="mt-5 border-t border-white/20 pt-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const form = e.currentTarget;
+              const email = String(
+                new FormData(form).get("email") || "",
+              ).trim();
+              if (!email) return;
+              setMailNote(undefined);
+              setLinkNote("");
+              void mail.run(async () => {
+                const r = await request<{ emailSent: boolean }>(
+                  `/api/lists/${id}/email-invites`,
+                  "POST",
+                  { email },
+                );
+                form.reset();
+                await refresh();
+                setMailNote(
+                  r.emailSent
+                    ? {
+                        tone: "ok",
+                        text: `Invitation envoyée à ${email}. Le lien reçu l’amène droit dans la liste.`,
+                      }
+                    : {
+                        tone: "info",
+                        text: "Invitation enregistrée : elle verra la liste en se connectant avec cette adresse. Envoyez-lui aussi le lien.",
+                      },
+                );
+              });
+            }}
+          >
+            <h3 className="text-[12px] font-extrabold tracking-[.06em] text-citron uppercase">
+              Inviter par e-mail
+            </h3>
+            <label
+              htmlFor="invite-email"
+              className="mt-1 block text-[14px] text-[#d7def5]"
+            >
+              Adresse d’un proche
+            </label>
+            <div className="mt-2 flex gap-2">
+              <input
+                id="invite-email"
+                name="email"
+                type="email"
+                inputMode="email"
+                autoComplete="off"
+                required
+                maxLength={254}
+                placeholder="prenom@exemple.fr"
+                className="field min-h-11 min-w-0 flex-1 rounded-[10px] border-0 px-3"
+              />
+              <button
+                className="btn btn-light btn-sm flex-none"
+                disabled={mail.busy}
+              >
+                {mail.busy ? "Envoi…" : "Inviter"}
+              </button>
+            </div>
+          </form>
+          <Notice tone="error">{mail.message}</Notice>
+          {!mail.message && mailNote && (
+            <Notice tone={mailNote.tone}>{mailNote.text}</Notice>
+          )}
+          {invites.length > 0 && (
+            <>
+              <h4 className="mt-4 text-[14px] font-bold text-[#d7def5]">
+                {plural(
+                  invites.length,
+                  "personne invitée",
+                  "personnes invitées",
+                )}
+                {waiting ? ` · ${waiting} en attente` : ""}
+              </h4>
+              <ul className="mt-1">
+                {invites.map((i) => (
+                  <li
+                    key={i.id}
+                    className="grid min-h-12 grid-cols-[1fr_auto] items-center gap-x-2.5 gap-y-1 border-t border-white/20 py-2"
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-[14px] font-bold [overflow-wrap:anywhere]">
+                        {i.email}
+                      </span>
+                      <span
+                        className={`chip mt-1 ${i.accepted_at ? "chip-bottle" : "chip-citron"}`}
+                      >
+                        {i.accepted_at ? "a rejoint" : "en attente"}
+                      </span>
+                    </span>
+                    {!i.accepted_at && (
+                      <button
+                        className="btn btn-sm bg-white/12 text-[13px] text-enamel hover:bg-white/22"
+                        disabled={mail.busy}
+                        aria-label={`Annuler l’invitation de ${i.email}`}
+                        onClick={() => {
+                          setMailNote(undefined);
+                          setLinkNote("");
+                          void mail.run(async () => {
+                            await request(
+                              `/api/lists/${id}/email-invites/${i.id}`,
+                              "DELETE",
+                            );
+                            await refresh();
+                            setMailNote({
+                              tone: "info",
+                              text: `Invitation de ${i.email} annulée.`,
+                            });
+                          });
+                        }}
+                      >
+                        Annuler
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
       )}
     </section>
   );
@@ -686,7 +793,7 @@ export function ListDetail({
                   <p className="mt-1 text-muted">
                     {count
                       ? "À droite si vous le voulez, à gauche sinon. On peut toujours revenir en arrière."
-                      : "Les photos arrivent bientôt : revenez dans un moment."}
+                      : "Les photos arrivent bientôt : revenez dans un moment."}
                   </p>
                 </div>
                 {count > 0 && (

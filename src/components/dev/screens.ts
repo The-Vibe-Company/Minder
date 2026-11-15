@@ -1,6 +1,7 @@
 // The screens of the development-only preview, by route segment.
 export const SCREENS = {
   lists: "Mes listes",
+  "lists-vide": "Mes listes, nouveau compte",
   proprietaire: "Liste, vue de Muriel",
   invite: "Liste, vue d’un proche",
   swipe: "Swiper",

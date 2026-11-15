@@ -98,10 +98,11 @@ export function Likes() {
     const index = items.findIndex((i) => i.id === like.id);
     const name = itemName(like);
     // Keyboard focus moves to the next « Retirer », or to the title.
-    const buttons = [
-      ...document.querySelectorAll<HTMLElement>("[data-like]"),
-    ].filter((b) => b.dataset.like !== like.id);
-    const next = buttons[Math.min(index, buttons.length - 1)];
+    const all = [...document.querySelectorAll<HTMLButtonElement>("[data-like]")];
+    const at = all.findIndex((b) => b.dataset.like === like.id);
+    const usable = (b: HTMLButtonElement) => !b.disabled && b.dataset.like !== like.id;
+    const next =
+      all.slice(at + 1).find(usable) ?? all.slice(0, at).reverse().find(usable);
     (next ?? document.getElementById("mes-likes"))?.focus();
     setLeaving((l) => [...l, like.id]);
     const timer = setTimeout(() => {

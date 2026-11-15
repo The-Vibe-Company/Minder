@@ -38,13 +38,14 @@ let me: Me | null | undefined;
 let loading: Promise<void> | null = null;
 const listeners = new Set<() => void>();
 function load() {
-  loading ??= request<Me>("/api/me")
-    .then((m) => {
-      me = m;
+  loading ??= fetch("/api/me")
+    .then(async (r) => {
+      if (r.status === 401) me = null;
+      else if (r.ok) me = (await r.json()) as Me;
+      else throw new Error(String(r.status));
     })
     .catch(() => {
-      me = null;
-      // Signed out or a network hiccup: let the next page view ask again.
+      // A network hiccup is not a sign-out: stay « loading », ask again next time.
       loading = null;
     })
     .finally(() => listeners.forEach((l) => l()));

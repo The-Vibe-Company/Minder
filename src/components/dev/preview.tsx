@@ -11,9 +11,12 @@ import { Recap } from "../recap";
 import { Invite } from "../invite";
 import { Login } from "../login";
 import { SiteHeader } from "../site-header";
+import { Likes } from "../likes";
+import { UserNav } from "../me";
+import { Welcome } from "../welcome";
 import { rememberList, type Item } from "../ui";
 import type { Uploader } from "@/hooks/upload";
-import { items as seed, LIST_ID, MEMBERS } from "./fixtures";
+import { items as seed, likes, LIST_ID, MEMBERS } from "./fixtures";
 import { SCREENS, type Screen } from "./screens";
 
 const TOKEN = "a".repeat(64);
@@ -27,6 +30,13 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 function install(screen: Screen) {
   const state = {
     items: seed(),
+    likes: screen === "likes-vide" ? [] : likes(),
+    me: {
+      id: "m-muriel",
+      email: "muriel@exemple.fr",
+      displayName: screen === "bienvenue" ? null : "Muriel",
+      onboarded: screen !== "bienvenue",
+    } as { id: string; email: string; displayName: string | null; onboarded: boolean },
     voted: new Set<string>(
       screen === "swipe-fini" ? seed().map((i) => i.id) : [],
     ),
@@ -53,7 +63,9 @@ function install(screen: Screen) {
       },
     ],
   };
-  const role = screen === "proprietaire" ? "owner" : "member";
+  const role =
+    screen === "proprietaire" || screen === "suppression" ? "owner" : "member";
+  const isPublished = (i: Item) => i.status !== "draft";
   const real = window.fetch.bind(window);
   window.fetch = async (input, init) => {
     const url = new URL(
@@ -70,6 +82,19 @@ function install(screen: Screen) {
     await wait(150);
     const body = init?.body ? JSON.parse(String(init.body)) : {};
     const strip = (i: Item) => ({ ...i, yes: undefined, no: undefined });
+    if (p === "/api/me") {
+      if (method === "PATCH") {
+        const name = String(body.displayName || "").trim();
+        if (!name || name.length > 40 || name.includes("@"))
+          return json({ error: "Prénom invalide." }, 400);
+        state.me = { ...state.me, displayName: name, onboarded: true };
+      }
+      return json(state.me);
+    }
+    if (p === "/api/me/likes") {
+      await wait(250);
+      return json({ items: state.likes });
+    }
     if (p === "/api/lists")
       return json({
         lists:
@@ -99,12 +124,23 @@ function install(screen: Screen) {
                 },
               ],
       });
-    if (p === `/api/lists/${LIST_ID}`)
+    if (p === `/api/lists/${LIST_ID}`) {
+      if (method === "DELETE") {
+        await wait(500);
+        return json({ ok: true, removedPhotos: state.items.length });
+      }
+      const visible =
+        role === "owner" ? state.items : state.items.filter(isPublished);
       return json({
         list: { title: "La maison de Rennes" },
         role,
-        items: state.items.map(strip),
+        items: visible.map(strip),
+        drafts:
+          role === "owner"
+            ? state.items.filter((i) => !isPublished(i)).length
+            : 0,
       });
+    }
     if (p === `/api/lists/${LIST_ID}/invites`) {
       if (method === "POST") {
         const token = Date.now().toString(16).padStart(64, "d").slice(-64);
@@ -169,15 +205,31 @@ function install(screen: Screen) {
         );
       return json({ ok: true, notice: null });
     }
+    // A draft whose title contains "échec" cannot be published, on purpose.
+    const publish = p.match(/^\/api\/items\/([^/]+)\/publish$/);
+    if (publish) {
+      await wait(400);
+      const found = state.items.find((i) => i.id === publish[1]);
+      if (!found) return json({ error: "Objet introuvable." }, 404);
+      if (/échec/i.test(found.title || ""))
+        return json({ error: "Publication impossible pour l’instant." }, 500);
+      found.status = "published";
+      found.published_at = new Date().toISOString();
+      return json({ item: found });
+    }
     const vote = p.match(/^\/api\/items\/([^/]+)\/vote$/);
     if (vote) {
-      if (method === "DELETE") state.voted.delete(vote[1]);
-      else state.voted.add(vote[1]);
+      if (method === "DELETE") {
+        state.voted.delete(vote[1]);
+        state.likes = state.likes.filter((l) => l.id !== vote[1]);
+      } else state.voted.add(vote[1]);
       return json({ ok: true });
     }
     if (p === `/api/lists/${LIST_ID}/swipe`)
       return json({
-        items: state.items.filter((i) => !state.voted.has(i.id)).map(strip),
+        items: state.items
+          .filter((i) => isPublished(i) && !state.voted.has(i.id))
+          .map(strip),
       });
     if (p === `/api/lists/${LIST_ID}/search`) {
       await wait(350);
@@ -198,10 +250,11 @@ function install(screen: Screen) {
       });
     }
     if (p === `/api/lists/${LIST_ID}/recap`) {
-      const all = [...state.items].sort(
+      const all = state.items.filter(isPublished).sort(
         (a, b) => (b.yes?.length ?? 0) - (a.yes?.length ?? 0),
       );
       return json({
+        list: { id: LIST_ID, title: "La maison de Rennes" },
         items: all,
         members: MEMBERS.map((m) => {
           const yes = all.filter((i) =>
@@ -274,7 +327,9 @@ export function Preview({ screen }: { screen: Screen | null }) {
     case "lists-vide":
       return (
         <>
-          <SiteHeader />
+          <SiteHeader>
+            <UserNav />
+          </SiteHeader>
           <main id="contenu">
             <Lists />
           </main>
@@ -283,6 +338,27 @@ export function Preview({ screen }: { screen: Screen | null }) {
     case "proprietaire":
     case "invite":
       return <ListDetail id={LIST_ID} uploader={fakeUpload} />;
+    case "suppression":
+      return <ListDetail id={LIST_ID} uploader={fakeUpload} startDelete />;
+    case "likes":
+    case "likes-vide":
+      return (
+        <>
+          <SiteHeader>
+            <UserNav />
+          </SiteHeader>
+          <main id="contenu">
+            <Likes />
+          </main>
+        </>
+      );
+    case "bienvenue":
+      return (
+        <>
+          <SiteHeader />
+          <Welcome next="/dev/preview/lists" />
+        </>
+      );
     case "swipe":
     case "swipe-fini":
       return <Swipe id={LIST_ID} />;

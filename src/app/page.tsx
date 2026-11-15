@@ -14,12 +14,12 @@ const steps = [
   {
     n: "2",
     title: "La famille swipe",
-    text: "À droite, « je le veux ». À gauche, « non merci ». On peut changer d’avis, et retrouver la lampe du bureau en la cherchant.",
+    text: "À droite, « je le veux ». À gauche, « non merci ». On peut changer d’avis, et retrouver la lampe du bureau en la cherchant.",
   },
   {
     n: "3",
     title: "On fait les comptes",
-    text: "Le récap montre qui veut quoi. Quand trois personnes veulent la soupière, on en parle au déjeuner.",
+    text: "Le récap montre qui veut quoi, et chacun retrouve ses likes. Quand trois personnes veulent la soupière, on en parle au déjeuner.",
   },
 ];
 
@@ -49,7 +49,7 @@ export default async function Home() {
               </h1>
               <p className="text-[18px] text-muted lg:text-[20px]">
                 Muriel photographie la soupière, le buffet, la boîte à boutons.
-                Chacun dit « je le veux » ou « non merci » du bout du pouce, et
+                Chacun dit « je le veux » ou « non merci » du bout du pouce, et
                 personne ne se fâche au moment de charger le camion.
               </p>
               <div className="mt-7 flex flex-wrap items-center gap-3">
@@ -58,7 +58,7 @@ export default async function Home() {
                   <IconArrow />
                 </Link>
                 <p className="text-[14px] text-muted">
-                  Une invitation reçue ? Ouvrez simplement son lien.
+                  Une invitation reçue ? Ouvrez simplement son lien.
                 </p>
               </div>
             </div>
@@ -67,9 +67,12 @@ export default async function Home() {
               aria-hidden="true"
             >
               <div className="absolute inset-0 translate-y-2 rotate-3 rounded-[30px] bg-enamel shadow-[0_0_0_2px_var(--color-line)]" />
-              <div className="relative -rotate-2 rounded-[30px] bg-enamel p-2.5 shadow-[0_18px_30px_-12px_rgba(18,26,58,.45)]">
-                <div className="overflow-hidden rounded-[20px]">
+              <div className="sway relative rounded-[30px] bg-enamel p-2.5 shadow-[0_18px_30px_-12px_rgba(18,26,58,.45)]">
+                <div className="relative overflow-hidden rounded-[20px]">
                   <Soupiere className="block aspect-[4/3] w-full" />
+                  <span className="stamp left-4 -rotate-12 text-bottle">
+                    Je le veux
+                  </span>
                 </div>
                 <div className="px-2 pt-3 pb-2">
                   <p className="font-display text-[22px] font-bold leading-tight">
@@ -116,7 +119,7 @@ export default async function Home() {
       </main>
       <footer className="border-t border-line">
         <p className="mx-auto max-w-[1180px] px-4 py-6 text-[14px] text-muted lg:px-8">
-          Minder, pour la famille. Rien n’est vendu ici : on se partage.
+          Minder, pour la famille. Rien n’est vendu ici : on se partage.
         </p>
       </footer>
     </>

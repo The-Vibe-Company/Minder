@@ -42,6 +42,11 @@ toile: the big kitchen table under its oilcloth, where the family sits on Sunday
 - `plate` in `src/app/globals.css`: a relative's seat
 - `token` in `src/app/globals.css`: the two big answer buttons, token-yes and token-no
 - `swipe-card` in `src/app/globals.css`
+- `stamp` in `src/app/globals.css`: the « je le veux » / « non merci » stamps that land on a dragged card
+- `skeleton` in `src/app/globals.css`: loading shapes, breathing in opacity only
+- `chip-draft` in `src/app/globals.css`: the « Brouillon » badge (citron: a draft needs a look)
+- `press` in `src/app/globals.css`: the press state of non-button taps; `btn` has it built in
+- `dialog.sheet` in `src/app/globals.css`: the confirmation sheet (native `<dialog>`)
 
 ### React
 - `ListShell` in `src/components/ui.tsx`: top bar, tabs on desktop, bottom tabs on phone
@@ -53,6 +58,9 @@ toile: the big kitchen table under its oilcloth, where the family sits on Sunday
 - `SectionHead` in `src/components/ui.tsx`
 - `Mug` in `src/components/ui.tsx`: the empty states' coffee mug
 - `Loading` in `src/components/ui.tsx`
+- `Skeleton`, `CardsSkeleton`, `Burst` (light confetti on publish) and `buzz` (a short vibration) in `src/components/ui.tsx`
+- `Toaster` and `toast()` in `src/components/toast.tsx`: one message at a time, with an optional « Annuler »
+- `UserNav`, `useMe` and `personName` in `src/components/me.tsx`: the first name and « Mes likes » in the header, never the e-mail
 - `src/components/icons.tsx`: the stroke icons
 - `src/components/art.tsx`: the flat drawings of objects
 
@@ -64,4 +72,6 @@ toile: the big kitchen table under its oilcloth, where the family sits on Sunday
 - Each relative keeps one seat colour, from their id, wherever they appear.
 - Component classes are Tailwind `@utility` blocks and base rules sit in `@layer base`, so utilities and variants always win.
 - Copy is French, warm and a little funny, never memes; no sentence about the interface itself.
-- Motion only on transform and opacity, and none under prefers-reduced-motion.
+- Motion only on transform and opacity, and none under prefers-reduced-motion; ease out exponentially, never an overshooting bounce.
+- A person is shown by their first name, never their e-mail.
+- French typography: a non-breaking space before : ; ? ! » and after «.

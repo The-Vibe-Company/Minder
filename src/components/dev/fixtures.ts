@@ -55,6 +55,12 @@ const ART = {
       .map(([x, y, c]) => `<circle cx="${x}" cy="${y}" r="9" fill="${c}"/>`)
       .join("")}`,
   ),
+  moulin: svg(
+    `<ellipse cx="200" cy="318" rx="80" ry="10" fill="#bdb6a8"/><rect x="140" y="200" width="120" height="112" rx="8" fill="#8a5a2b"/><rect x="186" y="246" width="28" height="24" rx="3" fill="#6f4520"/><circle cx="200" cy="258" r="3" fill="#d9b25b"/><path d="M152 200l14-46h68l14 46z" fill="#b8913c"/><path d="M200 154v-30" stroke="#3a3a3a" stroke-width="6"/><path d="M200 124h52" stroke="#3a3a3a" stroke-width="6" stroke-linecap="round"/><circle cx="256" cy="124" r="10" fill="#6f4520"/>`,
+  ),
+  pendule: svg(
+    `<rect x="150" y="70" width="100" height="230" rx="48" fill="#6f4520"/><circle cx="200" cy="128" r="38" fill="#f3f1ea" stroke="#d9b25b" stroke-width="6"/><path d="M200 128v-24M200 128l16 10" stroke="#121a3a" stroke-width="4" stroke-linecap="round"/><path d="M200 172v80" stroke="#d9b25b" stroke-width="3"/><circle cx="200" cy="258" r="14" fill="#d9b25b"/><rect x="140" y="296" width="120" height="16" rx="4" fill="#5a3818"/>`,
+  ),
   tableau: svg(
     `<rect x="80" y="70" width="240" height="170" fill="#8a5a14"/><rect x="94" y="84" width="212" height="142" fill="#bcd3e6"/><rect x="94" y="180" width="212" height="46" fill="#2a5c8f"/><path d="M200 110v70h40z" fill="#fff"/><path d="M196 120v60h-32z" fill="#f3f1ea"/><path d="M160 182h90l-10 12h-70z" fill="#6f4520"/>`,
   ),
@@ -75,8 +81,37 @@ export const MEMBERS = [
 ];
 const P = Object.fromEntries(MEMBERS.map((m) => [m.display_name, m]));
 
+/** The objects on the table, plus two drafts Muriel has not published yet. */
 export function items(): Item[] {
   return [
+    {
+      id: "i-moulin",
+      status: "draft",
+      published_at: null,
+      title: "Moulin à café Peugeot",
+      photoUrl: ART.moulin,
+      ...auto(
+        "Moulin à café en bois avec manivelle en fer et petit tiroir à l’avant. Le mécanisme tourne encore.",
+      ),
+      yes: [],
+      no: [],
+    },
+    {
+      id: "i-pendule",
+      status: "draft",
+      published_at: null,
+      title: null,
+      photoUrl: ART.pendule,
+      ...auto("Pendule murale en bois sombre, cadran crème et balancier doré."),
+      yes: [],
+      no: [],
+    },
+    ...published(),
+  ];
+}
+
+function published(): Item[] {
+  return ([
     {
       id: "i-soupiere",
       title: "La soupière de Quimper",
@@ -92,7 +127,7 @@ export function items(): Item[] {
       title: "Le buffet du salon",
       photoUrl: ART.buffet,
       description:
-        "Buffet en chêne du salon, deux portes et deux tiroirs. Lourd : prévoir deux paires de bras et un camion.",
+        "Buffet en chêne du salon, deux portes et deux tiroirs. Lourd : prévoir deux paires de bras et un camion.",
       description_auto: "Meuble en bois avec deux portes.",
       yes: [P.Thomas, P.Stan],
       no: [P.Claire, P["Léo"]],
@@ -173,5 +208,45 @@ export function items(): Item[] {
       yes: [P.Stan],
       no: [],
     },
+  ] as Item[]).map((i) => ({
+    ...i,
+    status: "published" as const,
+    published_at: "2026-11-12T10:00:00Z",
+  }));
+}
+
+/** Muriel's « je le veux », across two lists. */
+export function likes() {
+  const rennes = { id: LIST_ID, title: "La maison de Rennes" };
+  const mamie = { id: "l2", title: "Succession de Mamie Jeanne" };
+  const pick = (id: string) => published().find((i) => i.id === id)!;
+  const like = (
+    item: Item,
+    list: { id: string; title: string },
+    voted_at: string,
+  ) => ({
+    id: item.id,
+    title: item.title ?? null,
+    description: item.description,
+    photoUrl: item.photoUrl ?? null,
+    list_id: list.id,
+    list,
+    voted_at,
+  });
+  return [
+    like(pick("i-soupiere"), rennes, "2026-11-14T18:20:00Z"),
+    like(pick("i-lampe"), rennes, "2026-11-14T18:12:00Z"),
+    like(pick("i-miroir"), rennes, "2026-11-13T09:40:00Z"),
+    like(
+      { ...pick("i-singer"), id: "i-singer-2" },
+      mamie,
+      "2026-11-12T20:05:00Z",
+    ),
+    like(
+      { ...pick("i-boutons"), id: "i-boutons-2" },
+      mamie,
+      "2026-11-12T19:58:00Z",
+    ),
   ];
 }
+

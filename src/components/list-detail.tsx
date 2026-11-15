@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
 import { request, useResource } from "@/hooks/use-resource";
 import { useTask } from "@/hooks/use-task";
 import {
@@ -10,38 +11,52 @@ import {
   type UploadStep,
 } from "@/hooks/upload";
 import {
+  Burst,
+  CardsSkeleton,
   Item,
   ListShell,
-  Loading,
   Mug,
   Notice,
   Photo,
   SectionHead,
+  Skeleton,
+  buzz,
+  forgetList,
   itemName,
   rememberList,
 } from "./ui";
+import { toast } from "./toast";
 import {
   IconArrow,
   IconCards,
+  IconCheck,
   IconCopy,
   IconMail,
   IconPlus,
   IconShare,
+  IconX,
 } from "./icons";
 
 function plural(n: number, one: string, many: string) {
   return `${n} ${n > 1 ? many : one}`;
 }
 
-/* ---------- Un objet, sa description modifiable ---------- */
+/* ---------- Un objet, son nom et sa description modifiables ---------- */
+type Changes = { title: string; description: string };
 function Editor({
   item,
   refresh,
+  publish,
+  fresh = false,
 }: {
   item: Item;
   refresh: () => Promise<void>;
+  /** Drafts only: publish, with the edits not saved yet. */
+  publish?: (item: Item, changes?: Changes) => void;
+  fresh?: boolean;
 }) {
   const task = useTask();
+  const draft = item.status === "draft";
   const saved = item.description || "";
   const savedTitle = item.title || "";
   const [text, setText] = useState(saved);
@@ -62,6 +77,7 @@ function Editor({
   );
   const empty = !text.trim();
   const fieldId = `desc-${item.id}`;
+  const name = itemName({ title, description: text });
   const save = () =>
     task.run(async () => {
       const result = await request<{ notice?: string | null }>(
@@ -73,15 +89,36 @@ function Editor({
       await refresh();
     });
   return (
-    <li className="grid grid-cols-[104px_1fr] gap-3 rounded-[22px] bg-white p-2.5 shadow-[0_0_0_1.5px_var(--color-line)] sm:grid-cols-1">
-      <div className="aspect-square overflow-hidden rounded-xl sm:aspect-[4/3]">
+    <li
+      className={`rise grid grid-cols-[104px_1fr] gap-3 rounded-[22px] bg-white p-2.5 sm:grid-cols-1 ${
+        draft
+          ? "shadow-[0_0_0_2px_var(--color-citron),0_10px_22px_-16px_rgba(18,26,58,.5)]"
+          : "shadow-[0_0_0_1.5px_var(--color-line)]"
+      } ${fresh ? "fresh" : ""}`}
+    >
+      <div className="relative aspect-square overflow-hidden rounded-xl sm:aspect-[4/3]">
         <Photo item={item} />
+        <span
+          className={`chip absolute top-2 left-2 shadow-[0_0_0_2px_var(--color-enamel)] ${draft ? "chip-draft" : ""}`}
+        >
+          {draft ? (
+            "Brouillon"
+          ) : (
+            <>
+              <IconCheck size={14} />
+              Publié
+            </>
+          )}
+        </span>
+        {fresh && <Burst />}
       </div>
       <form
         className="min-w-0"
+        aria-label={draft ? `Brouillon : ${name}` : name}
         onSubmit={(e) => {
           e.preventDefault();
-          void save();
+          if (draft) publish?.(item, dirty ? { title, description: text } : undefined);
+          else void save();
         }}
       >
         <label htmlFor={`title-${item.id}`} className="sr-only">
@@ -134,18 +171,35 @@ function Editor({
             className="btn btn-danger btn-sm"
             disabled={task.busy}
             onClick={() => {
-              if (confirm("Supprimer cet objet et sa photo ?"))
+              if (confirm(`Supprimer « ${name} » et sa photo ?`))
                 void task.run(async () => {
                   await request(`/api/items/${item.id}`, "DELETE");
                   await refresh();
+                  toast({ text: `« ${name} » a quitté la table.` });
                 });
             }}
           >
             Supprimer
           </button>
-          <button className="btn btn-sm" disabled={task.busy || !dirty}>
-            {task.busy ? "…" : "Enregistrer"}
-          </button>
+          {draft ? (
+            <>
+              <button
+                type="button"
+                className="btn btn-quiet btn-sm"
+                disabled={task.busy || !dirty}
+                onClick={() => void save()}
+              >
+                {task.busy ? "…" : "Enregistrer"}
+              </button>
+              <button className="btn btn-sm" disabled={task.busy}>
+                Publier
+              </button>
+            </>
+          ) : (
+            <button className="btn btn-sm" disabled={task.busy || !dirty}>
+              {task.busy ? "…" : "Enregistrer"}
+            </button>
+          )}
         </div>
       </form>
     </li>
@@ -267,7 +321,7 @@ function Upload({
           meta={
             rows.length
               ? `${done} sur ${rows.length} ajoutée${done > 1 ? "s" : ""}${failed ? ` · ${failed} à reprendre` : ""}`
-              : "Toutes les photos d’un coup, si vous voulez"
+              : "Chaque photo arrive en brouillon : vous relisez, puis vous publiez"
           }
         />
         <label
@@ -713,28 +767,245 @@ function Invites({ id, title }: { id: string; title: string }) {
   );
 }
 
+/* ---------- Zone sensible : supprimer la liste ---------- */
+const fold = (s: string) => s.trim().replace(/\s+/g, " ").toLocaleLowerCase("fr");
+
+export function DeleteList({
+  id,
+  title,
+  count,
+  startOpen = false,
+}: {
+  id: string;
+  title: string;
+  count: number;
+  /** Dev preview only: show the dialog at once. */
+  startOpen?: boolean;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const opener = useRef<HTMLButtonElement>(null);
+  const router = useRouter();
+  const task = useTask();
+  const [typed, setTyped] = useState("");
+  const match = fold(typed) === fold(title);
+  useEffect(() => {
+    if (startOpen) dialog.current?.showModal();
+  }, [startOpen]);
+  const close = () => {
+    dialog.current?.close();
+    setTyped("");
+    task.setMessage("");
+  };
+  return (
+    <section
+      aria-labelledby="zone-sensible"
+      className="order-3 rounded-[22px] p-5 shadow-[inset_0_0_0_1.5px_var(--color-alert-soft)] lg:order-none lg:col-start-1"
+    >
+      <h2 id="zone-sensible" className="text-[20px] font-bold">
+        Zone sensible
+      </h2>
+      <p className="mt-1 text-[15px] text-muted">
+        Le partage est terminé ? Vous pouvez supprimer la liste, ses objets et
+        toutes leurs photos.
+      </p>
+      <button
+        ref={opener}
+        className="btn btn-sm mt-3 bg-transparent text-alert shadow-[inset_0_0_0_2px_var(--color-alert)] hover:bg-alert-soft"
+        onClick={() => dialog.current?.showModal()}
+      >
+        Supprimer la liste
+      </button>
+      <dialog
+        ref={dialog}
+        className="sheet"
+        aria-labelledby="supprimer-titre"
+        aria-describedby="supprimer-texte"
+        onClose={() => {
+          setTyped("");
+          opener.current?.focus();
+        }}
+      >
+        <form
+          className="p-6 lg:p-8"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!match) return;
+            void task.run(async () => {
+              const r = await request<{ ok: boolean; removedPhotos?: number }>(
+                `/api/lists/${id}`,
+                "DELETE",
+              );
+              const photos = r.removedPhotos ?? 0;
+              toast({
+                text: `« ${title} » est supprimée${photos ? `, avec ses ${photos} photo${photos > 1 ? "s" : ""}` : ""}.`,
+              });
+              forgetList(id);
+              dialog.current?.close();
+              router.push("/lists");
+              router.refresh();
+            });
+          }}
+        >
+          <span
+            aria-hidden="true"
+            className="grid size-14 place-items-center rounded-full bg-alert-soft text-alert"
+          >
+            <IconX size={28} />
+          </span>
+          <h2 id="supprimer-titre" className="mt-4 text-[28px] font-extrabold">
+            Supprimer « {title} » ?
+          </h2>
+          <div id="supprimer-texte" className="mt-2 text-[16px] text-muted">
+            <p>
+              {count
+                ? `Les ${plural(count, "objet", "objets")} et toutes leurs photos seront effacés, `
+                : "La liste sera effacée, "}
+              avec les choix de la famille et les liens d’invitation. On ne
+              pourra pas revenir en arrière.
+            </p>
+          </div>
+          <label htmlFor="confirmer-nom" className="field-label mt-5">
+            Pour confirmer, tapez le nom de la liste
+          </label>
+          <input
+            id="confirmer-nom"
+            className="field"
+            autoComplete="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            placeholder={title}
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+          />
+          <Notice tone="error">{task.message}</Notice>
+          <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <button type="button" className="btn btn-quiet" onClick={close}>
+              Garder la liste
+            </button>
+            <button
+              className="btn bg-alert text-white hover:bg-[#8f1e18]"
+              disabled={!match || task.busy}
+              aria-disabled={!match}
+            >
+              {task.busy ? "Suppression…" : "Supprimer définitivement"}
+            </button>
+          </div>
+        </form>
+      </dialog>
+    </section>
+  );
+}
+
 /* ---------- La page de la liste ---------- */
+type Detail = {
+  list: { title: string };
+  role: string;
+  items: Item[];
+  drafts?: number;
+  notice?: string;
+};
+
 export function ListDetail({
   id,
   uploader = uploadPhoto,
+  startDelete = false,
 }: {
   id: string;
   uploader?: Uploader;
+  startDelete?: boolean;
 }) {
-  const { data, error, refresh } = useResource<{
-    list: { title: string };
-    role: string;
-    items: Item[];
-    notice?: string;
-  }>(`/api/lists/${id}`);
+  const { data, error, refresh, mutate } = useResource<Detail>(
+    `/api/lists/${id}`,
+  );
+  // Just published: they glow a moment once they reach the table.
+  const [fresh, setFresh] = useState<string[]>([]);
   useEffect(() => {
     if (data) rememberList(id, { title: data.list.title, role: data.role });
   }, [id, data]);
   const owner = data?.role === "owner";
-  const count = data?.items.length ?? 0;
-  const toReview = data?.items.filter(
+  const all = data?.items ?? [];
+  const drafts = owner ? all.filter((i) => i.status === "draft") : [];
+  const published = all.filter((i) => i.status !== "draft");
+  const count = published.length;
+  const toReview = published.filter(
     (i) => !i.description || i.description === i.description_auto,
   ).length;
+
+  const setStatus = (ids: string[], status: Item["status"], patch?: Partial<Item>) =>
+    mutate((d) => ({
+      ...d,
+      items: d.items.map((i) =>
+        ids.includes(i.id)
+          ? {
+              ...i,
+              ...patch,
+              status,
+              published_at:
+                status === "published" ? new Date().toISOString() : null,
+            }
+          : i,
+      ),
+    }));
+
+  // Optimistic: the card moves to the table at once, and goes back to the
+  // drafts with a message if the server refuses.
+  async function publish(item: Item, changes?: Changes) {
+    const name = itemName(changes ?? item);
+    setStatus([item.id], "published", changes);
+    setFresh((f) => [...f, item.id]);
+    buzz();
+    try {
+      if (changes) await request(`/api/items/${item.id}`, "PATCH", changes);
+      await request(`/api/items/${item.id}/publish`, "POST");
+      toast({ text: `« ${name} » est sur la table : la famille peut le voir.` });
+    } catch (e) {
+      mutate((d) => ({
+        ...d,
+        items: d.items.map((i) => (i.id === item.id ? item : i)),
+      }));
+      toast({
+        tone: "error",
+        text: `${(e as Error).message} « ${name} » reste en brouillon.`,
+      });
+      void refresh();
+    } finally {
+      setTimeout(() => setFresh((f) => f.filter((x) => x !== item.id)), 1600);
+    }
+  }
+
+  const publishing = useTask();
+  const publishAll = () =>
+    publishing.run(async () => {
+      const batch = drafts;
+      setStatus(
+        batch.map((i) => i.id),
+        "published",
+      );
+      setFresh((f) => [...f, ...batch.map((i) => i.id)]);
+      buzz();
+      const failed: Item[] = [];
+      for (const item of batch) {
+        try {
+          await request(`/api/items/${item.id}/publish`, "POST");
+        } catch {
+          failed.push(item);
+        }
+      }
+      if (failed.length) {
+        mutate((d) => ({
+          ...d,
+          items: d.items.map((i) => failed.find((f) => f.id === i.id) ?? i),
+        }));
+        toast({
+          tone: "error",
+          text: `${plural(failed.length, "brouillon n’a", "brouillons n’ont")} pas pu être publiés. Réessayez.`,
+        });
+      } else
+        toast({
+          text: `${plural(batch.length, "objet publié", "objets publiés")} : la famille peut swiper.`,
+        });
+      setTimeout(() => setFresh([]), 1600);
+    });
 
   return (
     <ListShell
@@ -742,21 +1013,37 @@ export function ListDetail({
       active="objets"
       role={data?.role ?? null}
       title={data?.list.title}
-      subtitle={data ? plural(count, "objet", "objets") : undefined}
+      subtitle={
+        data
+          ? `${plural(count, "objet", "objets")}${drafts.length ? ` · ${plural(drafts.length, "brouillon", "brouillons")}` : ""}`
+          : undefined
+      }
     >
       <div className="px-4 pt-6 lg:px-8 lg:pt-8">
         <h1 className="sr-only">{data?.list.title || "La liste"}</h1>
         <Notice tone="error">{error}</Notice>
         <Notice>{data?.notice}</Notice>
-        {!data && !error && <Loading />}
+        {!data && !error && (
+          <div className="grid gap-7 lg:grid-cols-[1fr_340px] lg:gap-8">
+            <div>
+              <Skeleton className="h-[180px] w-full rounded-[28px]" />
+              <Skeleton className="mt-8 mb-4 h-7 w-48" />
+              <CardsSkeleton
+                count={4}
+                className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+              />
+            </div>
+            <Skeleton className="hidden h-[320px] w-full rounded-[28px] lg:block" />
+          </div>
+        )}
         {data && owner && (
           <div className="grid gap-7 lg:grid-cols-[1fr_340px] lg:items-start lg:gap-8">
             <Upload id={id} refresh={refresh} send={uploader} />
-            <aside className="grid gap-3.5 lg:sticky lg:top-28 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+            <aside className="order-1 grid gap-3.5 lg:order-none lg:sticky lg:top-28 lg:col-start-2 lg:row-span-4 lg:row-start-1">
               <Invites id={id} title={data.list.title} />
               <Link
                 href={`/lists/${id}/recap`}
-                className="flex min-h-16 items-center justify-between gap-3 rounded-[22px] bg-citron px-4 py-3 font-extrabold text-ink transition-[filter] hover:brightness-105"
+                className="press flex min-h-16 items-center justify-between gap-3 rounded-[22px] bg-citron px-4 py-3 font-extrabold text-ink transition-[filter] hover:brightness-105"
               >
                 <span>
                   Récapitulatif des souhaits
@@ -767,28 +1054,80 @@ export function ListDetail({
                 <IconArrow />
               </Link>
             </aside>
-            <section aria-labelledby="sur-la-table" className="lg:col-start-1">
+            {drafts.length > 0 && (
+              <section aria-labelledby="brouillons" className="lg:col-start-1">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                  <h2 id="brouillons" className="text-[26px] font-bold">
+                    Brouillons{" "}
+                    <span className="font-sans text-[15px] font-semibold text-muted">
+                      — visibles par vous seulement
+                    </span>
+                  </h2>
+                  {drafts.length > 1 && (
+                    <button
+                      className="btn btn-sm"
+                      disabled={publishing.busy}
+                      onClick={() => void publishAll()}
+                    >
+                      {publishing.busy
+                        ? "Publication…"
+                        : `Tout publier (${drafts.length})`}
+                    </button>
+                  )}
+                </div>
+                <p className="mb-4 text-[15px] text-muted">
+                  Relisez le nom et la description, puis publiez : l’objet
+                  rejoint la table et la famille peut le swiper.
+                </p>
+                <ul className="grid gap-3.5 sm:grid-cols-2">
+                  {drafts.map((item) => (
+                    <Editor
+                      key={item.id}
+                      item={item}
+                      refresh={refresh}
+                      publish={(i, c) => void publish(i, c)}
+                    />
+                  ))}
+                </ul>
+              </section>
+            )}
+            <section
+              aria-labelledby="sur-la-table"
+              className="order-2 lg:order-none lg:col-start-1"
+            >
               <SectionHead
                 title={<span id="sur-la-table">Sur la table</span>}
                 meta={
                   count
-                    ? `${plural(count, "objet", "objets")}${toReview ? ` · ${toReview} à relire` : ""}`
+                    ? `${plural(count, "objet publié", "objets publiés")}${toReview ? ` · ${toReview} à relire` : ""}`
                     : undefined
                 }
               />
               {count === 0 ? (
                 <p className="rounded-[22px] bg-faience px-5 py-8 text-center text-muted">
-                  Rien sur la table pour l’instant. Commencez par la pièce de
-                  votre choix.
+                  {drafts.length
+                    ? "Rien de publié pour l’instant : la famille ne voit encore rien. Publiez un brouillon pour le poser sur la table."
+                    : "Rien sur la table pour l’instant. Commencez par la pièce de votre choix."}
                 </p>
               ) : (
                 <ul className="grid gap-3.5 sm:grid-cols-2">
-                  {data.items.map((item) => (
-                    <Editor key={item.id} item={item} refresh={refresh} />
+                  {published.map((item) => (
+                    <Editor
+                      key={item.id}
+                      item={item}
+                      refresh={refresh}
+                      fresh={fresh.includes(item.id)}
+                    />
                   ))}
                 </ul>
               )}
             </section>
+            <DeleteList
+              id={id}
+              title={data.list.title}
+              count={all.length}
+              startOpen={startDelete}
+            />
           </div>
         )}
         {data && !owner && (
@@ -826,7 +1165,7 @@ export function ListDetail({
                   meta={plural(count, "objet", "objets")}
                 />
                 <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                  {data.items.map((item) => (
+                  {published.map((item) => (
                     <li
                       key={item.id}
                       className="rounded-[22px] bg-white p-2 shadow-[0_0_0_1.5px_var(--color-line)]"

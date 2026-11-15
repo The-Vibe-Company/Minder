@@ -4,7 +4,7 @@ import { useRef } from "react";
 import { useResource, request } from "@/hooks/use-resource";
 import { useTask } from "@/hooks/use-task";
 import { Mug, Notice } from "./ui";
-import { IconArrow, IconMail, IconPlus, IconShare } from "./icons";
+import { IconArrow, IconHeart, IconMail, IconPlus, IconShare } from "./icons";
 
 type List = {
   id: string;
@@ -177,16 +177,20 @@ export function Lists() {
           </div>
         )}
         <ul className="mt-6 grid gap-4 sm:grid-cols-2">
-          {data?.lists.map((l) => {
+          {data?.lists.map((l, index) => {
             const seen = l.itemCount - l.remainingCount;
             const pct = l.itemCount
               ? Math.round((seen / l.itemCount) * 100)
               : 0;
             return (
-              <li key={l.id} className="min-w-0">
+              <li
+                key={l.id}
+                className="rise min-w-0"
+                style={{ animationDelay: `${Math.min(index, 6) * 50}ms` }}
+              >
                 <Link
                   href={`/lists/${l.id}`}
-                  className="group block h-full rounded-[22px] bg-white p-5 shadow-[0_0_0_1.5px_var(--color-line)] transition-shadow hover:shadow-[0_0_0_2px_var(--color-cobalt)]"
+                  className="group press block h-full rounded-[22px] bg-white p-5 shadow-[0_0_0_1.5px_var(--color-line)] transition-shadow hover:shadow-[0_0_0_2px_var(--color-cobalt)]"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <span
@@ -226,8 +230,25 @@ export function Lists() {
       </section>
       {/* Shown with the lists, so it never jumps down when they arrive. */}
       {(data || error) && (
-        <aside className="min-w-0 lg:sticky lg:top-24 lg:self-start">
+        <aside className="grid min-w-0 gap-4 lg:sticky lg:top-24 lg:self-start">
           {create}
+          {data && data.lists.length > 0 && (
+            <Link
+              href="/likes"
+              className="press flex min-h-16 items-center gap-3 rounded-[22px] bg-bottle-soft px-4 py-3 text-[#0f5636] transition-[filter] hover:brightness-[1.03]"
+            >
+              <span className="grid size-10 flex-none place-items-center rounded-full bg-bottle text-white">
+                <IconHeart size={20} />
+              </span>
+              <span className="min-w-0 flex-1 font-extrabold">
+                Mes likes
+                <small className="block text-[13px] font-semibold">
+                  Tout ce que vous avez réclamé, liste par liste
+                </small>
+              </span>
+              <IconArrow />
+            </Link>
+          )}
         </aside>
       )}
     </div>

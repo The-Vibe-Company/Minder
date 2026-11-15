@@ -2,7 +2,8 @@
 export const SCREENS = {
   lists: "Mes listes",
   "lists-vide": "Mes listes, nouveau compte",
-  proprietaire: "Liste, vue de Muriel",
+  proprietaire: "Liste, vue de Muriel (brouillons)",
+  suppression: "Liste, supprimer (confirmation)",
   invite: "Liste, vue d’un proche",
   swipe: "Swiper",
   "swipe-fini": "Swiper, tout vu",
@@ -12,5 +13,8 @@ export const SCREENS = {
   "invitation-connecte": "Invitation, déjà connecté·e",
   "invitation-expiree": "Invitation expirée",
   connexion: "Connexion",
+  bienvenue: "Bienvenue, le prénom",
+  likes: "Mes likes",
+  "likes-vide": "Mes likes, encore aucun",
 } as const;
 export type Screen = keyof typeof SCREENS;

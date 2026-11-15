@@ -1,14 +1,18 @@
 "use client";
+import { useEffect } from "react";
 import { useResource } from "@/hooks/use-resource";
+import { personName } from "./me";
 import {
   itemName,
   Item,
   ListShell,
-  Loading,
+  CardsSkeleton,
   Notice,
   Photo,
   Seat,
   seatColor,
+  rememberList,
+  Skeleton,
 } from "./ui";
 
 type Member = {
@@ -18,7 +22,7 @@ type Member = {
   no: number;
   remaining: number;
 };
-const name = (n: string | null | undefined) => n || "Membre";
+const name = (n: string | null | undefined) => personName(n);
 
 function People({
   people,
@@ -88,9 +92,15 @@ function ItemRow({
 }
 
 export function Recap({ id }: { id: string }) {
-  const { data, error } = useResource<{ items: Item[]; members: Member[] }>(
-    `/api/lists/${id}/recap`,
-  );
+  const { data, error } = useResource<{
+    list?: { id: string; title: string };
+    items: Item[];
+    members: Member[];
+  }>(`/api/lists/${id}/recap`);
+  const title = data?.list?.title;
+  useEffect(() => {
+    if (title) rememberList(id, { title, role: "owner" });
+  }, [id, title]);
   const items = data?.items ?? [];
   const conflicts = items.filter((i) => (i.yes?.length ?? 0) >= 2);
   const single = items.filter((i) => i.yes?.length === 1);
@@ -99,7 +109,7 @@ export function Recap({ id }: { id: string }) {
     {
       key: "conflict" as const,
       title: "À discuter",
-      meta: "Plusieurs « je le veux » sur le même objet",
+      meta: "Plusieurs « je le veux » sur le même objet",
       list: conflicts,
     },
     {
@@ -116,13 +126,32 @@ export function Recap({ id }: { id: string }) {
     },
   ];
   return (
-    <ListShell id={id} active="recap" subtitle="Récapitulatif des souhaits">
+    <ListShell
+      id={id}
+      active="recap"
+      title={title}
+      role={data ? "owner" : undefined}
+      subtitle="Récapitulatif des souhaits"
+    >
       <div className="px-4 pt-6 lg:px-8 lg:pt-10">
-        <h1 className="text-[32px] font-extrabold lg:text-[44px]">
+        <p className="kicker">{title ?? "Récapitulatif"}</p>
+        <h1 className="mt-2 text-[32px] font-extrabold lg:text-[44px]">
           Qui veut quoi
         </h1>
         <Notice tone="error">{error}</Notice>
-        {!data && !error && <Loading />}
+        {!data && !error && (
+          <div className="mt-6 grid gap-8 lg:grid-cols-[320px_1fr]">
+            <Skeleton className="h-[260px] w-full rounded-[28px]" />
+            <div>
+              <Skeleton className="mb-4 h-7 w-44" />
+              <CardsSkeleton
+                count={4}
+                label="On fait les comptes…"
+                className="grid gap-3 xl:grid-cols-2"
+              />
+            </div>
+          </div>
+        )}
         {data && (
           <div className="mt-6 grid gap-8 lg:grid-cols-[320px_1fr] lg:items-start">
             <aside className="toile rounded-[28px] p-3 lg:sticky lg:top-28">

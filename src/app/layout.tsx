@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Figtree } from "next/font/google";
 import "./globals.css";
+import { Toaster } from "@/components/toast";
 
 const display = Bricolage_Grotesque({
   subsets: ["latin"],
@@ -22,7 +23,7 @@ export const metadata: Metadata = {
     template: "%s · Minder",
   },
   description:
-    "La maison est vendue : Muriel photographie les objets, la famille dit « je le veux » ou « non merci », et chacun repart avec ce qui compte.",
+    "La maison est vendue : Muriel photographie les objets, la famille dit « je le veux » ou « non merci », et chacun repart avec ce qui compte.",
   openGraph: {
     title: "Minder — on se partage les objets de la maison",
     description:
@@ -49,6 +50,7 @@ export default function RootLayout({
           Aller au contenu
         </a>
         <Suspense fallback={null}>{children}</Suspense>
+        <Toaster />
       </body>
     </html>
   );

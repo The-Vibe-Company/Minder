@@ -20,7 +20,7 @@ export default function NotFound() {
             Cette page a déjà déménagé
           </h1>
           <p className="mt-3 text-[17px] text-muted">
-            Ou elle n’a jamais existé. L’adresse est peut-être incomplète : un
+            Ou elle n’a jamais existé. L’adresse est peut-être incomplète : un
             lien coupé en deux dans un e-mail, ça arrive.
           </p>
           <div className="mt-7 flex flex-wrap justify-center gap-3">

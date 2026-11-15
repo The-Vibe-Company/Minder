@@ -2,7 +2,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useSyncExternalStore } from "react";
-import { IconBack, IconCards, IconGrid, IconRecap, IconSearch } from "./icons";
+import {
+  IconBack,
+  IconCards,
+  IconGrid,
+  IconHeart,
+  IconRecap,
+  IconSearch,
+} from "./icons";
 
 export type Item = {
   id: string;
@@ -10,6 +17,8 @@ export type Item = {
   description: string | null;
   description_auto?: string | null;
   photoUrl?: string | null;
+  status?: "draft" | "published";
+  published_at?: string | null;
   yes?: { id: string; display_name: string | null }[];
   no?: { id: string; display_name: string | null }[];
 };
@@ -157,6 +166,13 @@ export function rememberList(id: string, info: ListInfo) {
     /* stockage indisponible : on s'en passe */
   }
 }
+export function forgetList(id: string) {
+  try {
+    sessionStorage.removeItem(key(id));
+  } catch {
+    /* rien à oublier */
+  }
+}
 const noop = () => () => {};
 function subscribe(cb: () => void) {
   window.addEventListener("minder:list", cb);
@@ -237,7 +253,7 @@ export function ListShell({
       href: `/lists/${id}/recap`,
       icon: <IconRecap />,
     });
-  const heading = title || info?.title || "La liste";
+  const heading = title || info?.title;
   return (
     <>
       <header className="sticky top-0 z-20 bg-cobalt text-enamel">
@@ -251,7 +267,12 @@ export function ListShell({
           </Link>
           <div className="min-w-0 flex-1">
             <p className="truncate font-display text-[22px] font-bold leading-tight lg:text-[26px]">
-              {heading}
+              {heading ?? (
+                <span
+                  aria-label="Chargement de la liste"
+                  className="skeleton inline-block h-[22px] w-44 rounded-full bg-white/20 align-middle"
+                />
+              )}
             </p>
             <p className="min-h-[18px] truncate text-[13px] leading-[18px] text-[#d7def5]">
               {subtitle}
@@ -280,6 +301,14 @@ export function ListShell({
               ))}
             </ul>
           </nav>
+          <Link
+            href="/likes"
+            aria-label="Mes likes"
+            title="Mes likes"
+            className="press grid size-11 flex-none place-items-center rounded-full bg-white/12 text-enamel transition-colors hover:bg-white/22"
+          >
+            <IconHeart />
+          </Link>
         </div>
         <div className="toile-band" aria-hidden="true" />
       </header>
@@ -368,4 +397,69 @@ export function Loading({ label = "On met la table…" }: { label?: string }) {
       {label}
     </p>
   );
+}
+
+/* ---------- Squelettes : la forme de ce qui arrive ---------- */
+export function Skeleton({ className = "" }: { className?: string }) {
+  return <span aria-hidden="true" className={`skeleton block ${className}`} />;
+}
+export function CardsSkeleton({
+  count = 4,
+  label = "On met la table…",
+  className = "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4",
+}: {
+  count?: number;
+  label?: string;
+  className?: string;
+}) {
+  return (
+    <div role="status" aria-label={label}>
+      <ul aria-hidden="true" className={className}>
+        {Array.from({ length: count }, (_, i) => (
+          <li
+            key={i}
+            className="rounded-[22px] bg-white p-2 shadow-[0_0_0_1.5px_var(--color-line)]"
+            style={{ animationDelay: `${i * 90}ms` }}
+          >
+            <Skeleton className="aspect-square w-full" />
+            <Skeleton className="mt-3 h-4 w-3/4" />
+            <Skeleton className="mt-2 mb-1 h-3 w-1/2" />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/* ---------- Un peu de fête : quelques miettes de faïence ---------- */
+const CRUMBS = ["#2343a6", "#ffd84a", "#17704a", "#172d73", "#ffd84a", "#2343a6"];
+export function Burst({ count = 12 }: { count?: number }) {
+  return (
+    <span aria-hidden="true" className="pointer-events-none absolute inset-0">
+      {Array.from({ length: count }, (_, i) => (
+        <span
+          key={i}
+          className="crumb"
+          style={
+            {
+              background: CRUMBS[i % CRUMBS.length],
+              "--a": `${(360 / count) * i + (i % 2 ? 9 : -9)}deg`,
+              "--d": `${-38 - (i % 3) * 14}px`,
+              animationDelay: `${(i % 4) * 25}ms`,
+            } as React.CSSProperties
+          }
+        />
+      ))}
+    </span>
+  );
+}
+
+/** A tiny vibration on phones that have one; nothing elsewhere. */
+export function buzz(ms = 12) {
+  try {
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+      navigator.vibrate?.(ms);
+  } catch {
+    /* pas de vibreur : tant pis */
+  }
 }

@@ -33,7 +33,7 @@ export function Search({ id }: { id: string }) {
           }}
         >
           <label htmlFor="q" className="sr-only">
-            Que cherchez-vous ?
+            Que cherchez-vous ?
           </label>
           <div className="flex gap-2">
             <div className="relative min-w-0 flex-1">
@@ -64,12 +64,12 @@ export function Search({ id }: { id: string }) {
             <>
               <h2 className="text-[20px] font-bold">
                 {results.items.length
-                  ? `${results.items.length} objet${results.items.length > 1 ? "s" : ""} pour « ${results.q} »`
-                  : `Rien pour « ${results.q} »`}
+                  ? `${results.items.length} objet${results.items.length > 1 ? "s" : ""} pour « ${results.q} »`
+                  : `Rien pour « ${results.q} »`}
               </h2>
               {results.items.length === 0 && (
                 <p className="mt-1 text-muted">
-                  Essayez un mot plus court : « lampe » plutôt que « lampe de
+                  Essayez un mot plus court : « lampe » plutôt que « lampe de
                   chevet ».
                 </p>
               )}

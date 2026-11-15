@@ -41,7 +41,7 @@ export function Login({
               Ouvrez-le sur cet appareil, et vous voilà à table.
             </p>
             <p className="mt-3 text-[15px] text-muted">
-              Rien reçu après quelques minutes ? Jetez un œil aux indésirables,
+              Rien reçu après quelques minutes ? Jetez un œil aux indésirables,
               puis renvoyez-le.
             </p>
             <Notice tone="error">{task.message}</Notice>
@@ -71,7 +71,7 @@ export function Login({
             </p>
             <h1 className="mt-3 text-[34px] font-extrabold">Retrouvons-nous</h1>
             <p className="mt-2 text-[17px] text-muted">
-              Pas de mot de passe à retenir : on vous envoie un lien par e-mail.
+              Pas de mot de passe à retenir : on vous envoie un lien par e-mail.
             </p>
             <Notice tone="error">
               {invalidLink

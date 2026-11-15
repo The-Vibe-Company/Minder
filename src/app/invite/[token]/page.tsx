@@ -5,7 +5,7 @@ import { SiteHeader } from "@/components/site-header";
 export const metadata: Metadata = {
   title: "Une invitation en famille",
   description:
-    "On vous garde une place à table : dites quels objets de la maison vous aimeriez garder.",
+    "On vous garde une place à table : dites quels objets de la maison vous aimeriez garder.",
 };
 
 export default async function Page({

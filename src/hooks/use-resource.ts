@@ -36,5 +36,10 @@ export function useResource<T>(url: string) {
     }, 0);
     return () => clearTimeout(timer);
   }, [refresh]);
-  return { data, error, refresh };
+  // Optimistic edits: change the local copy now, the next refresh brings the server's back.
+  const mutate = useCallback(
+    (fn: (current: T) => T) => setData((d) => (d === undefined ? d : fn(d))),
+    [],
+  );
+  return { data, error, refresh, mutate };
 }

@@ -35,7 +35,19 @@ export default function CompleteAuth() {
     if (!pending || busy) return;
     setBusy(true);
     try {
-      const { error } = await createClient().auth.setSession({
+      const db = createClient();
+      // The decoded label is not proof of identity. Reject expired/forged
+      // access tokens before auth-js could refresh into a different account.
+      const verified = await db.auth.getUser(pending.access_token);
+      if (verified.error || verified.data.user?.email !== pending.email) {
+        throw new Error("invalid identity");
+      }
+      const existing = await db.auth.getUser();
+      if (existing.data.user) {
+        window.location.replace(`/auth/callback?session=1&next=${encodeURIComponent(pending.next)}`);
+        return;
+      }
+      const { error } = await db.auth.setSession({
         access_token: pending.access_token, refresh_token: pending.refresh_token,
       });
       window.location.replace(error ? "/login?error=invalid_link" :

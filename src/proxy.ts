@@ -1,3 +1,4 @@
+import { safeNext } from "@/lib/api";
 import { canAutoJoin } from "@/lib/navigation-guard";
 import { inviteToken, joinCookieOptions } from "@/lib/invitations";
 import { createServerClient } from "@supabase/ssr";
@@ -42,6 +43,15 @@ export async function proxy(request: NextRequest) {
       request.nextUrl.pathname + request.nextUrl.search,
     );
     const redirect = NextResponse.redirect(login);
+    response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+    return redirect;
+  }
+  // Do not let a cross-site complete-page visit launder an existing session
+  // into a same-origin callback that silently accepts an invitation.
+  if (user && request.nextUrl.pathname === "/auth/complete" &&
+      !canAutoJoin(request)) {
+    const next = safeNext(request.nextUrl.searchParams.get("next"));
+    const redirect = NextResponse.redirect(new URL(next, request.url));
     response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
     return redirect;
   }

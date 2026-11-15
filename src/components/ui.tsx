@@ -6,12 +6,23 @@ import { IconBack, IconCards, IconGrid, IconRecap, IconSearch } from "./icons";
 
 export type Item = {
   id: string;
+  title?: string | null;
   description: string | null;
   description_auto?: string | null;
   photoUrl?: string | null;
   yes?: { id: string; display_name: string | null }[];
   no?: { id: string; display_name: string | null }[];
 };
+
+/** What to call an object: its title, else the start of its description. */
+export function itemName(item: Pick<Item, "title" | "description">) {
+  const title = item.title?.trim();
+  if (title) return title;
+  const text = item.description?.trim();
+  if (!text) return "Un objet sans nom";
+  const first = text.split(/[.,;:!?]/)[0].trim();
+  return first.length > 60 ? `${first.slice(0, 57)}…` : first;
+}
 
 /* ---------- Marque ---------- */
 export function Brand({ light = false }: { light?: boolean }) {
@@ -72,7 +83,7 @@ export function Photo({
       height={1600}
       draggable={false}
       src={item.photoUrl}
-      alt={item.description || "Objet à découvrir"}
+      alt={item.title || item.description || "Objet à découvrir"}
       className={`block size-full bg-[#ece9e2] object-contain ${className}`}
     />
   ) : (

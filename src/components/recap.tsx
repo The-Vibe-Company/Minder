@@ -1,6 +1,15 @@
 "use client";
 import { useResource } from "@/hooks/use-resource";
-import { Item, ListShell, Loading, Notice, Photo, Seat, seatColor } from "./ui";
+import {
+  itemName,
+  Item,
+  ListShell,
+  Loading,
+  Notice,
+  Photo,
+  Seat,
+  seatColor,
+} from "./ui";
 
 type Member = {
   id: string;
@@ -62,7 +71,8 @@ function ItemRow({
           <span className="chip chip-bottle">{yes.length} oui</span>
           {no.length > 0 && <span className="chip">{no.length} non</span>}
         </div>
-        <p className="mt-2 line-clamp-2 text-[15px]">
+        <p className="mt-2 truncate text-[16px] font-bold">{itemName(item)}</p>
+        <p className="line-clamp-1 text-[14px] text-muted">
           {item.description || "Sans description"}
         </p>
         <div className="mt-2.5">

@@ -17,6 +17,7 @@ import {
   Notice,
   Photo,
   SectionHead,
+  itemName,
   rememberList,
 } from "./ui";
 import { IconArrow, IconCards, IconCopy, IconPlus, IconShare } from "./icons";
@@ -35,16 +36,22 @@ function Editor({
 }) {
   const task = useTask();
   const saved = item.description || "";
+  const savedTitle = item.title || "";
   const [text, setText] = useState(saved);
-  const [base, setBase] = useState(saved);
-  if (base !== saved) {
+  const [title, setTitle] = useState(savedTitle);
+  const [base, setBase] = useState(`${savedTitle}\u0000${saved}`);
+  if (base !== `${savedTitle}\u0000${saved}`) {
     // The server copy changed (refresh after a save or an upload): follow it.
-    setBase(saved);
+    setBase(`${savedTitle}\u0000${saved}`);
     setText(saved);
+    setTitle(savedTitle);
   }
-  const dirty = text.trim() !== saved.trim();
+  const dirty =
+    text.trim() !== saved.trim() || title.trim() !== savedTitle.trim();
   const auto = Boolean(
-    item.description && item.description === item.description_auto && !dirty,
+    item.description &&
+    item.description === item.description_auto &&
+    text.trim() === saved.trim(),
   );
   const empty = !text.trim();
   const fieldId = `desc-${item.id}`;
@@ -53,7 +60,7 @@ function Editor({
       const result = await request<{ notice?: string | null }>(
         `/api/items/${item.id}`,
         "PATCH",
-        { description: text },
+        { title, description: text },
       );
       task.setMessage(result.notice || "Enregistré.");
       await refresh();
@@ -70,6 +77,17 @@ function Editor({
           void save();
         }}
       >
+        <label htmlFor={`title-${item.id}`} className="sr-only">
+          Nom de l’objet
+        </label>
+        <input
+          id={`title-${item.id}`}
+          className="field mb-2 min-h-11 rounded-xl px-3 font-bold"
+          value={title}
+          maxLength={120}
+          placeholder="Nom de l’objet"
+          onChange={(e) => setTitle(e.target.value)}
+        />
         <div className="mb-1.5 flex min-h-6 items-center gap-2">
           <label htmlFor={fieldId} className="text-[14px] font-extrabold">
             Description
@@ -671,7 +689,10 @@ export function ListDetail({
                       <div className="aspect-square overflow-hidden rounded-[14px]">
                         <Photo item={item} />
                       </div>
-                      <p className="mt-2 line-clamp-2 px-1 pb-1 text-[14px]">
+                      <p className="mt-2 truncate px-1 text-[15px] font-bold">
+                        {itemName(item)}
+                      </p>
+                      <p className="line-clamp-2 px-1 pb-1 text-[13px] text-muted">
                         {item.description || "Description à venir"}
                       </p>
                     </li>

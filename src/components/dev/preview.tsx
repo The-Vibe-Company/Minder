@@ -123,7 +123,13 @@ function install(screen: Screen) {
         state.items = state.items.filter((i) => i.id !== item[1]);
       else
         state.items = state.items.map((i) =>
-          i.id === item[1] ? { ...i, description: body.description } : i,
+          i.id === item[1]
+            ? {
+                ...i,
+                title: body.title ?? i.title,
+                description: body.description ?? i.description,
+              }
+            : i,
         );
       return json({ ok: true, notice: null });
     }
@@ -146,7 +152,11 @@ function install(screen: Screen) {
       return json({
         items: state.items
           .filter((i) =>
-            words.some((w) => (i.description || "").toLowerCase().includes(w)),
+            words.some((w) =>
+              `${i.title || ""} ${i.description || ""}`
+                .toLowerCase()
+                .includes(w),
+            ),
           )
           .map(strip),
         semanticAvailable: false,

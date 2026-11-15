@@ -2,26 +2,26 @@
 import { useState } from "react";
 import { request } from "@/hooks/use-resource";
 import { useTask } from "@/hooks/use-task";
-import { Item, ListShell, Notice, Photo } from "./ui";
+import { Item, ListShell, Notice, Photo, itemName } from "./ui";
 import { IconSearch } from "./icons";
 
-type Mode = "text" | "hybrid";
+type Mode = "text" | "semantic";
 const MODES: { value: Mode; label: string; hint: string }[] = [
   {
-    value: "hybrid",
-    label: "Par le sens",
-    hint: "« un truc pour s’asseoir » trouve le fauteuil",
+    value: "text",
+    label: "Par les mots",
+    hint: "Les objets dont le nom ou la description contient vos mots",
   },
   {
-    value: "text",
-    label: "Mots exacts",
-    hint: "Seulement les descriptions qui contiennent vos mots",
+    value: "semantic",
+    label: "Par le sens",
+    hint: "« un truc pour s’asseoir » devrait trouver le fauteuil",
   },
 ];
 
 export function Search({ id }: { id: string }) {
   const task = useTask();
-  const [mode, setMode] = useState<Mode>("hybrid");
+  const [mode, setMode] = useState<Mode>("text");
   const [results, setResults] = useState<{ q: string; items: Item[] }>();
   const [fallback, setFallback] = useState(false);
   return (
@@ -43,10 +43,11 @@ export function Search({ id }: { id: string }) {
               const params = new URLSearchParams({ q, mode });
               const r = await request<{
                 items: Item[];
-                semanticAvailable: boolean;
+                semanticAvailable?: boolean;
               }>(`/api/lists/${id}/search?${params}`);
               setResults({ q, items: r.items });
-              setFallback(mode !== "text" && !r.semanticAvailable);
+              // The API searches by words only for now; meaning falls back to words.
+              setFallback(mode === "semantic" && r.semanticAvailable !== true);
             });
           }}
         >
@@ -103,8 +104,8 @@ export function Search({ id }: { id: string }) {
         <Notice tone="error">{task.message}</Notice>
         {fallback && (
           <Notice>
-            La recherche par le sens se repose un peu : voici les résultats par
-            mots exacts.
+            La recherche par le sens n’est pas encore là : voici les résultats
+            par mots, c’est déjà pas mal.
           </Notice>
         )}
         {results && (
@@ -116,7 +117,8 @@ export function Search({ id }: { id: string }) {
             </h2>
             {results.items.length === 0 && (
               <p className="mt-1 text-muted">
-                Essayez un autre mot, ou la recherche par le sens.
+                Essayez un mot plus court : « lampe » plutôt que « lampe de
+                chevet ».
               </p>
             )}
             <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -128,7 +130,10 @@ export function Search({ id }: { id: string }) {
                   <div className="aspect-square overflow-hidden rounded-[14px]">
                     <Photo item={item} />
                   </div>
-                  <p className="mt-2 line-clamp-3 px-1 pb-1 text-[14px]">
+                  <p className="mt-2 truncate px-1 text-[15px] font-bold">
+                    {itemName(item)}
+                  </p>
+                  <p className="line-clamp-2 px-1 pb-1 text-[13px] text-muted">
                     {item.description || "Sans description"}
                   </p>
                 </li>

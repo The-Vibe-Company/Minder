@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { request, useResource } from "@/hooks/use-resource";
-import { Item, ListShell, Loading, Mug, Notice, Photo } from "./ui";
+import { Item, ListShell, Loading, Mug, Notice, Photo, itemName } from "./ui";
 import { IconHeart, IconUndo, IconX } from "./icons";
 
 type Choice = "yes" | "no";
@@ -124,7 +124,7 @@ export function Swipe({ id }: { id: string }) {
       {item && (
         <section
           aria-label="Objet à choisir"
-          className="toile pt-5 pb-8 lg:mx-8 lg:mt-8 lg:rounded-[40px] lg:py-10"
+          className="toile overflow-x-clip pt-5 pb-8 lg:mx-8 lg:mt-8 lg:rounded-[40px] lg:py-10"
         >
           <div className="mx-auto grid max-w-[1000px] items-center justify-items-center gap-6 px-3.5 lg:grid-cols-[1fr_420px_1fr]">
             <div className="hidden lg:flex lg:flex-col lg:items-center lg:gap-3">
@@ -226,13 +226,13 @@ export function Swipe({ id }: { id: string }) {
                     Je le veux →
                   </span>
                 </div>
-                <p className="px-2 pt-3.5 pb-2 text-[17px] leading-snug">
-                  {item.description || (
-                    <span className="text-muted">
-                      Pas encore de description : la photo parle pour lui.
-                    </span>
-                  )}
-                </p>
+                <div className="px-2 pt-3.5 pb-2">
+                  <h2 className="text-[24px] font-bold">{itemName(item)}</h2>
+                  <p className="mt-1 text-[16px] leading-snug text-muted">
+                    {item.description ||
+                      "Pas encore de description : la photo parle pour lui."}
+                  </p>
+                </div>
               </article>
             </div>
             <div className="hidden lg:flex lg:flex-col lg:items-center lg:gap-3">
@@ -282,9 +282,7 @@ export function Swipe({ id }: { id: string }) {
         <Notice tone="error">{message}</Notice>
         {last && item && (
           <p role="status" className="mt-3 text-center text-[14px] text-muted">
-            Dernier choix : «{" "}
-            {(last.item.description || "cet objet").slice(0, 48)}
-            {(last.item.description?.length ?? 0) > 48 ? "…" : ""} »,{" "}
+            Dernier choix : « {itemName(last.item)} »,{" "}
             {last.choice === "yes" ? "je le veux" : "non merci"}.
           </p>
         )}

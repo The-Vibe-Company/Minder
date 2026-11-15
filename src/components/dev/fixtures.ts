@@ -79,6 +79,7 @@ export function items(): Item[] {
   return [
     {
       id: "i-soupiere",
+      title: "La soupière de Quimper",
       photoUrl: ART.soupiere,
       ...auto(
         "Soupière en faïence de Quimper, décor de fleurs bleues, une petite ébréchure au couvercle.",
@@ -88,6 +89,7 @@ export function items(): Item[] {
     },
     {
       id: "i-buffet",
+      title: "Le buffet du salon",
       photoUrl: ART.buffet,
       description:
         "Buffet en chêne du salon, deux portes et deux tiroirs. Lourd : prévoir deux paires de bras et un camion.",
@@ -97,6 +99,7 @@ export function items(): Item[] {
     },
     {
       id: "i-lampe",
+      title: "La lampe verte du bureau",
       photoUrl: ART.lampe,
       ...auto(
         "Lampe de bureau, abat-jour en verre vert, pied en laiton. Fonctionne.",
@@ -106,6 +109,7 @@ export function items(): Item[] {
     },
     {
       id: "i-livres",
+      title: null,
       photoUrl: ART.livres,
       description: "",
       description_auto: null,
@@ -114,6 +118,7 @@ export function items(): Item[] {
     },
     {
       id: "i-miroir",
+      title: "Le miroir de l’entrée",
       photoUrl: ART.miroir,
       description:
         "Miroir ovale doré de l’entrée. Celui où l’on vérifiait sa coiffure avant de partir.",
@@ -123,6 +128,7 @@ export function items(): Item[] {
     },
     {
       id: "i-singer",
+      title: "La Singer de Mamie",
       photoUrl: ART.singer,
       ...auto(
         "Machine à coudre Singer noire avec décor doré, posée sur un socle en bois.",
@@ -132,6 +138,7 @@ export function items(): Item[] {
     },
     {
       id: "i-fauteuil",
+      title: "Le fauteuil moutarde",
       photoUrl: ART.fauteuil,
       description:
         "Fauteuil en velours moutarde, un peu râpé sur l’accoudoir droit.",
@@ -141,6 +148,7 @@ export function items(): Item[] {
     },
     {
       id: "i-boutons",
+      title: "La boîte à boutons",
       photoUrl: ART.boutons,
       description:
         "La boîte à boutons de Mamie. Personne ne sait combien il y en a.",
@@ -150,6 +158,7 @@ export function items(): Item[] {
     },
     {
       id: "i-verres",
+      title: "Les six verres à pied",
       photoUrl: ART.verres,
       ...auto("Six verres à pied en cristal, ceux des grandes occasions."),
       yes: [],
@@ -157,6 +166,7 @@ export function items(): Item[] {
     },
     {
       id: "i-tableau",
+      title: "Le tableau du bateau",
       photoUrl: ART.tableau,
       description: "Le tableau du bateau, peint par l’oncle Pierre.",
       description_auto: null,

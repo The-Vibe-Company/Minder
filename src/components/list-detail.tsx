@@ -390,8 +390,17 @@ function Invites({ id, title }: { id: string; title: string }) {
     text: string;
   }>();
   const [copied, setCopied] = useState(false);
+  // After a revoke the focused button is gone: hand focus to « Créer le lien ».
+  const revoked = useRef(false);
+  const createLink = useRef<HTMLButtonElement>(null);
   const canShare = useCanShare();
   const share = data?.shareLink ?? null;
+  useEffect(() => {
+    if (revoked.current && !share && !link.busy) {
+      revoked.current = false;
+      createLink.current?.focus();
+    }
+  }, [share, link.busy]);
   const url = share?.url;
   const pitch = `On se partage les objets de « ${title} ». Dites ce que vous voulez garder :`;
   const invites = data?.emailInvites ?? [];
@@ -441,6 +450,7 @@ function Invites({ id, title }: { id: string; title: string }) {
       await request(`/api/invites/${share.id}`, "DELETE");
       await refresh();
       setLinkNote("Lien révoqué. Créez-en un nouveau quand vous voulez.");
+      revoked.current = true;
     });
   };
 
@@ -563,6 +573,7 @@ function Invites({ id, title }: { id: string; title: string }) {
                 rejoint avec son e-mail.
               </p>
               <button
+                ref={createLink}
                 className="btn btn-light btn-sm mt-3 w-full"
                 disabled={link.busy}
                 onClick={() => rotate(false)}
@@ -684,6 +695,7 @@ function Invites({ id, title }: { id: string; title: string }) {
                               tone: "info",
                               text: `Invitation de ${i.email} annulée.`,
                             });
+                            document.getElementById("invite-email")?.focus();
                           });
                         }}
                       >

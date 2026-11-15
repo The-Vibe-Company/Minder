@@ -33,7 +33,7 @@ export function Lists() {
   const start = (name?: string) => {
     const input = field.current;
     if (!input) return;
-    if (name) input.value = `${name} · `;
+    if (name) input.value = `${name} `;
     input.focus();
     input.setSelectionRange(input.value.length, input.value.length);
   };

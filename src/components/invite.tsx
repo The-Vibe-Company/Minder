@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useResource, request } from "@/hooks/use-resource";
 import { useTask } from "@/hooks/use-task";
@@ -58,6 +58,16 @@ export function Invite({ token }: { token: string }) {
   const router = useRouter();
   const field = useRef<HTMLInputElement>(null);
   const [sentTo, setSentTo] = useState<string>();
+  const sentHeading = useRef<HTMLHeadingElement>(null);
+  const asked = useRef(false);
+  // Keep keyboard focus on what just appeared: the « check your email »
+  // heading after sending, the email field after « Changer d’adresse ».
+  useEffect(() => {
+    if (sentTo) {
+      asked.current = true;
+      sentHeading.current?.focus();
+    } else if (asked.current) field.current?.focus();
+  }, [sentTo]);
   const next = `/invite/${token}`;
   const valid = data?.invite && !data.invite.expired;
   const host = data?.invite?.owner_name || "Votre famille";
@@ -79,7 +89,11 @@ export function Invite({ token }: { token: string }) {
             <span className="mx-auto grid size-16 place-items-center rounded-full bg-citron text-ink">
               <IconMail size={30} />
             </span>
-            <h1 className="mt-5 text-[30px] font-extrabold lg:text-[34px]">
+            <h1
+              ref={sentHeading}
+              tabIndex={-1}
+              className="mt-5 text-[30px] font-extrabold outline-none lg:text-[34px]"
+            >
               Vérifiez votre boîte mail
             </h1>
             <p className="mt-3 text-[17px] text-muted">

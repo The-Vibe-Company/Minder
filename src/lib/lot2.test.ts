@@ -20,10 +20,22 @@ it("enumerates before removal and removes in batches",async()=>{
  expect(remove.mock.calls.map(c=>c[0].length)).toEqual([100,1]);
  expect(list.mock.invocationCallOrder[1]).toBeLessThan(remove.mock.invocationCallOrder[0]);
 });
-it("continues after partial storage failure",async()=>{
+it("stops on storage failure",async()=>{
  const list=vi.fn().mockResolvedValueOnce({data:Array.from({length:100},(_,i)=>({id:String(i),name:String(i)}))}).mockResolvedValueOnce({data:[{id:"last",name:"last"}]});
  const remove=vi.fn().mockResolvedValueOnce({error:{message:"failed"}}).mockResolvedValueOnce({data:[{}]});
- const log=vi.spyOn(console,"error").mockImplementation(()=>{});
- expect(await removeListPhotos({storage:{from:()=>({list,remove})}} as unknown as Client,"list")).toBe(1);
- log.mockRestore();
+ await expect(removeListPhotos({storage:{from:()=>({list,remove})}} as unknown as Client,"list")).rejects.toThrow("removal incomplete");
+ expect(remove).toHaveBeenCalledTimes(1);
+});
+
+
+it("does not remove any photos when a later enumeration page fails",async()=>{
+ const list=vi.fn().mockResolvedValueOnce({data:Array.from({length:100},(_,i)=>({id:String(i),name:String(i)}))}).mockResolvedValueOnce({error:{message:"failed"}});
+ const remove=vi.fn();
+ await expect(removeListPhotos({storage:{from:()=>({list,remove})}} as unknown as Client,"list")).rejects.toThrow("enumeration failed");
+ expect(remove).not.toHaveBeenCalled();
+});
+it("rejects an incomplete removal response",async()=>{
+ const list=vi.fn().mockResolvedValue({data:[{id:"photo",name:"photo"}]});
+ const remove=vi.fn().mockResolvedValue({data:[]});
+ await expect(removeListPhotos({storage:{from:()=>({list,remove})}} as unknown as Client,"list")).rejects.toThrow("removal incomplete");
 });

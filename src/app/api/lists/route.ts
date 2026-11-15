@@ -1,13 +1,17 @@
+import { collectPages } from "@/lib/pagination";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { route, session, check, membership } from "@/lib/api";
 export const GET = route(async () => {
   const { db, user } = await session();
-  const { data, error } = await db
-    .from("lists")
-    .select("*")
-    .order("created_at", { ascending: false });
-  check(error);
+  const data = await collectPages((from, to) =>
+    db
+      .from("lists")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .order("id")
+      .range(from, to),
+  );
   const lists = await Promise.all(
     (data ?? []).map(async (list) => {
       const role = await membership(db, list.id, user.id);

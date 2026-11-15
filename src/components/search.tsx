@@ -24,7 +24,7 @@ export function Search({ id }: { id: string }) {
               semanticAvailable: boolean;
             }>(`/api/lists/${id}/search?${params}`);
             setResults(r.items);
-            if (!r.semanticAvailable)
+            if (form.get("mode") !== "text" && !r.semanticAvailable)
               task.setMessage(
                 "La recherche par sens est indisponible. Voici les résultats par mots.",
               );

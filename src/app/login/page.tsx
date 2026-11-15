@@ -2,8 +2,8 @@ import { Login } from "@/components/login";
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; error?: string }>;
 }) {
-  const { next } = await searchParams;
-  return <Login next={next || "/lists"} />;
+  const { next, error } = await searchParams;
+  return <Login invalidLink={Boolean(error)} next={next || "/lists"} />;
 }

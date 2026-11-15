@@ -1,35 +1,65 @@
+import type { Profile } from "@/lib/database.types";
+import { collectPages } from "@/lib/pagination";
 import { NextResponse } from "next/server";
 
-import { route, session, check, membership, signed } from "@/lib/api";
+import { route, session, membership, signed } from "@/lib/api";
 export const GET = route(async (_, ctx) => {
   const { listId } = await ctx.params;
   const { db, user } = await session();
   await membership(db, listId, user.id, true);
   const [items, votes, members] = await Promise.all([
-    db.from("items").select("*").eq("list_id", listId),
-    db.from("votes").select("*").eq("list_id", listId),
-    db.from("list_members").select("*").eq("list_id", listId),
+    collectPages((from, to) =>
+      db
+        .from("items")
+        .select("*")
+        .eq("list_id", listId)
+        .order("id")
+        .range(from, to),
+    ),
+    collectPages((from, to) =>
+      db
+        .from("votes")
+        .select("*")
+        .eq("list_id", listId)
+        .order("id")
+        .range(from, to),
+    ),
+    collectPages((from, to) =>
+      db
+        .from("list_members")
+        .select("*")
+        .eq("list_id", listId)
+        .order("user_id")
+        .range(from, to),
+    ),
   ]);
-  check(items.error);
-  check(votes.error);
-  check(members.error);
-  const ids = (members.data ?? []).map((m) => m.user_id);
-  const profiles = ids.length
-    ? await db.from("profiles").select("*").in("id", ids)
-    : { data: [], error: null };
-  check(profiles.error);
+  const ids = members.map((m) => m.user_id);
+  // Keep IN filters small enough for gateway URL limits as families grow.
+  const profiles: Profile[] = [];
+  for (let offset = 0; offset < ids.length; offset += 100) {
+    const chunk = ids.slice(offset, offset + 100);
+    profiles.push(
+      ...(await collectPages((from, to) =>
+        db
+          .from("profiles")
+          .select("*")
+          .in("id", chunk)
+          .order("id")
+          .range(from, to),
+      )),
+    );
+  }
   const person = (id: string) => ({
     id,
-    display_name:
-      profiles.data?.find((p) => p.id === id)?.display_name ?? "Membre",
+    display_name: profiles.find((p) => p.id === id)?.display_name ?? "Membre",
   });
-  const result = (await signed(db, items.data ?? []))
+  const result = (await signed(db, items))
     .map((item) => ({
       ...item,
-      yes: (votes.data ?? [])
+      yes: votes
         .filter((v) => v.item_id === item.id && v.choice === "yes")
         .map((v) => person(v.user_id)),
-      no: (votes.data ?? [])
+      no: votes
         .filter((v) => v.item_id === item.id && v.choice === "no")
         .map((v) => person(v.user_id)),
     }))
@@ -37,12 +67,12 @@ export const GET = route(async (_, ctx) => {
   return NextResponse.json({
     items: result,
     members: ids.map((id) => {
-      const own = (votes.data ?? []).filter((v) => v.user_id === id);
+      const own = votes.filter((v) => v.user_id === id);
       return {
         ...person(id),
         yes: own.filter((v) => v.choice === "yes").length,
         no: own.filter((v) => v.choice === "no").length,
-        remaining: (items.data?.length ?? 0) - own.length,
+        remaining: items.length - own.length,
       };
     }),
   });

@@ -1,8 +1,15 @@
 "use client";
+import { useRouter } from "next/navigation";
 import { request } from "@/hooks/use-resource";
 import { useTask } from "@/hooks/use-task";
 import { Notice } from "./ui";
-export function Login({ next }: { next: string }) {
+export function Login({
+  next,
+  invalidLink,
+}: {
+  next: string;
+  invalidLink?: boolean;
+}) {
   const task = useTask();
   return (
     <>
@@ -24,11 +31,17 @@ export function Login({ next }: { next: string }) {
         </label>
         <button disabled={task.busy}>Recevoir mon lien</button>
       </form>
-      <Notice>{task.message}</Notice>
+      <Notice>
+        {task.message ||
+          (invalidLink
+            ? "Ce lien est invalide ou expiré. Demandez un nouveau lien."
+            : "")}
+      </Notice>
     </>
   );
 }
 export function Logout() {
+  const router = useRouter();
   const task = useTask();
   return (
     <>
@@ -37,7 +50,8 @@ export function Logout() {
         onClick={() =>
           void task.run(async () => {
             await request("/api/auth/logout", "POST");
-            window.location.href = "/";
+            router.push("/");
+            router.refresh();
           })
         }
       >

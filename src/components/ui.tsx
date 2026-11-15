@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 export function Notice({ children }: { children: React.ReactNode }) {
   return children ? (
@@ -28,10 +29,14 @@ export type Item = {
   yes?: { id: string; display_name: string | null }[];
   no?: { id: string; display_name: string | null }[];
 };
-// Private signed URLs are short lived; native img avoids sending private URLs to an image optimizer.
+// Private signed URLs are short lived; unoptimized images avoids sending private URLs to an image optimizer.
 export function Photo({ item }: { item: Item }) {
   return item.photoUrl ? (
-    <img
+    <Image
+      unoptimized
+      width={1600}
+      height={1600}
+      draggable={false}
       src={item.photoUrl}
       alt={item.description || "Objet à découvrir"}
       className="aspect-square w-full rounded object-contain bg-white"

@@ -1,3 +1,4 @@
+import { collectPages } from "@/lib/pagination";
 import { NextResponse } from "next/server";
 
 import { route, session, check, membership, signed } from "@/lib/api";
@@ -11,15 +12,18 @@ export const GET = route(async (_, ctx) => {
     .eq("id", listId)
     .single();
   check(error);
-  const result = await db
-    .from("items")
-    .select("*")
-    .eq("list_id", listId)
-    .order("created_at", { ascending: false });
-  check(result.error);
+  const items = await collectPages((from, to) =>
+    db
+      .from("items")
+      .select("*")
+      .eq("list_id", listId)
+      .order("created_at", { ascending: false })
+      .order("id")
+      .range(from, to),
+  );
   return NextResponse.json({
     list,
     role,
-    items: await signed(db, result.data ?? []),
+    items: await signed(db, items),
   });
 });

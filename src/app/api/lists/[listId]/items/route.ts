@@ -31,6 +31,7 @@ export const POST = route(async (request, ctx) => {
     .createSignedUrl(photoPath, 300);
   const description = url ? await describeImage(url.signedUrl) : null;
   const embedding = description ? await embed(description, "document") : null;
+  let enrichmentSaved = false;
   if (description) {
     const updated = await db
       .from("items")
@@ -43,12 +44,15 @@ export const POST = route(async (request, ctx) => {
       .eq("id", item.id)
       .select()
       .single();
-    if (!updated.error && updated.data) Object.assign(item, updated.data);
+    if (!updated.error && updated.data) {
+      Object.assign(item, updated.data);
+      enrichmentSaved = true;
+    }
   }
   return NextResponse.json(
     {
       item: (await signed(db, [item]))[0],
-      notice: !description
+      notice: !enrichmentSaved
         ? "La description automatique est indisponible. Vous pouvez décrire l’objet vous-même."
         : !embedding
           ? "Recherche sémantique indisponible pour cet objet."

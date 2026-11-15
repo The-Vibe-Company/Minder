@@ -1,4 +1,5 @@
 "use client";
+import { useRouter } from "next/navigation";
 import { useResource, request } from "@/hooks/use-resource";
 import { useTask } from "@/hooks/use-task";
 import { Notice } from "./ui";
@@ -7,6 +8,7 @@ export function Invite({ token }: { token: string }) {
     invite: { list_title: string; owner_name: string; expired: boolean } | null;
   }>(`/api/invite/${encodeURIComponent(token)}`);
   const task = useTask();
+  const router = useRouter();
   return (
     <>
       <h1>Une invitation en famille</h1>
@@ -29,14 +31,15 @@ export function Invite({ token }: { token: string }) {
                   );
                 } catch (e) {
                   if ((e as Error).message.includes("Connectez")) {
-                    window.location.assign(
+                    router.push(
                       `/login?next=${encodeURIComponent(`/invite/${token}`)}`,
                     );
                     return;
                   }
                   throw e;
                 }
-                window.location.href = `/lists/${r.listId}`;
+                router.push(`/lists/${r.listId}`);
+                router.refresh();
               })
             }
           >

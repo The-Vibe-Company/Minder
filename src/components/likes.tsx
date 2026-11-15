@@ -26,7 +26,11 @@ function Head({ children }: { children?: React.ReactNode }) {
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
         <div>
           <p className="kicker">Vos « je le veux »</p>
-          <h1 className="mt-2 text-[34px] font-extrabold lg:text-[44px]">
+          <h1
+            id="mes-likes"
+            tabIndex={-1}
+            className="mt-2 text-[34px] font-extrabold outline-none lg:text-[44px]"
+          >
             Mes likes
           </h1>
         </div>
@@ -89,23 +93,36 @@ export function Likes() {
   }
 
   // Remove at once (the DELETE is sent now, so nothing is lost if the page
-  // closes); « Annuler » in the toast votes « je le veux » again.
+  // closes); « Annuler » in the toast votes « je le veux » again.
   function remove(like: Like) {
     const index = items.findIndex((i) => i.id === like.id);
     const name = itemName(like);
+    // Keyboard focus moves to the next « Retirer », or to the title.
+    const buttons = [
+      ...document.querySelectorAll<HTMLElement>("[data-like]"),
+    ].filter((b) => b.dataset.like !== like.id);
+    const next = buttons[Math.min(index, buttons.length - 1)];
+    (next ?? document.getElementById("mes-likes"))?.focus();
     setLeaving((l) => [...l, like.id]);
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       mutate((d) => ({ ...d, items: d.items.filter((i) => i.id !== like.id) }));
       setLeaving((l) => l.filter((x) => x !== like.id));
     }, 220);
     request(`/api/items/${like.id}/vote`, "DELETE").then(
       () =>
         toast({
-          text: `« ${name} » retiré de vos likes.`,
+          text: `« ${name} » retiré de vos likes.`,
           action: {
             label: "Annuler",
             run: () => {
               putBack(like, index);
+              setTimeout(
+                () =>
+                  document
+                    .querySelector<HTMLElement>(`[data-like="${like.id}"]`)
+                    ?.focus(),
+                60,
+              );
               request(`/api/items/${like.id}/vote`, "POST", {
                 choice: "yes",
               }).catch((e: Error) => {
@@ -119,8 +136,11 @@ export function Likes() {
           },
         }),
       (e: Error) => {
+        // A fast failure: the card has not left yet, keep it.
+        clearTimeout(timer);
+        setLeaving((l) => l.filter((x) => x !== like.id));
         putBack(like, index);
-        toast({ tone: "error", text: `${e.message} « ${name} » reste dans vos likes.` });
+        toast({ tone: "error", text: `${e.message} « ${name} » reste dans vos likes.` });
       },
     );
   }
@@ -168,6 +188,7 @@ export function Likes() {
                 <h2
                   id={`liste-${list.id}`}
                   className="truncate text-[24px] font-bold lg:text-[28px]"
+                  title={list.title}
                 >
                   {list.title}
                 </h2>
@@ -202,6 +223,7 @@ export function Likes() {
                   </p>
                   <button
                     className="btn btn-quiet btn-sm mt-2 w-full"
+                    data-like={like.id}
                     aria-label={`Retirer « ${itemName(like)} » de mes likes`}
                     disabled={leaving.includes(like.id)}
                     onClick={() => remove(like)}

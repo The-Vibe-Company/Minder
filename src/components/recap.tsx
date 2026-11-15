@@ -130,7 +130,7 @@ export function Recap({ id }: { id: string }) {
       id={id}
       active="recap"
       title={title}
-      role={data ? "owner" : undefined}
+      role={data ? "owner" : error ? undefined : null}
       subtitle="Récapitulatif des souhaits"
     >
       <div className="px-4 pt-6 lg:px-8 lg:pt-10">

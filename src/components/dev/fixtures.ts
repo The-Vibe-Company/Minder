@@ -215,7 +215,7 @@ function published(): Item[] {
   }));
 }
 
-/** Muriel's « je le veux », across two lists. */
+/** Muriel's « je le veux », across two lists. */
 export function likes() {
   const rennes = { id: LIST_ID, title: "La maison de Rennes" };
   const mamie = { id: "l2", title: "Succession de Mamie Jeanne" };

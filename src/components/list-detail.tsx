@@ -47,20 +47,24 @@ function Editor({
   item,
   refresh,
   publish,
+  edits,
   fresh = false,
 }: {
   item: Item;
   refresh: () => Promise<void>;
   /** Drafts only: publish, with the edits not saved yet. */
   publish?: (item: Item, changes?: Changes) => void;
+  /** Unsaved edits by item, kept by the page so « Tout publier » and a failed publish never lose them. */
+  edits: Map<string, Changes>;
   fresh?: boolean;
 }) {
   const task = useTask();
   const draft = item.status === "draft";
   const saved = item.description || "";
   const savedTitle = item.title || "";
-  const [text, setText] = useState(saved);
-  const [title, setTitle] = useState(savedTitle);
+  const pending = edits.get(item.id);
+  const [text, setText] = useState(pending?.description ?? saved);
+  const [title, setTitle] = useState(pending?.title ?? savedTitle);
   const [base, setBase] = useState(`${savedTitle}\u0000${saved}`);
   if (base !== `${savedTitle}\u0000${saved}`) {
     // The server copy changed (refresh after a save or an upload): follow it.
@@ -70,6 +74,10 @@ function Editor({
   }
   const dirty =
     text.trim() !== saved.trim() || title.trim() !== savedTitle.trim();
+  useEffect(() => {
+    if (dirty) edits.set(item.id, { title, description: text });
+    else edits.delete(item.id);
+  }, [dirty, edits, item.id, title, text]);
   const auto = Boolean(
     item.description &&
     item.description === item.description_auto &&
@@ -175,7 +183,7 @@ function Editor({
                 void task.run(async () => {
                   await request(`/api/items/${item.id}`, "DELETE");
                   await refresh();
-                  toast({ text: `« ${name} » a quitté la table.` });
+                  toast({ text: `« ${name} » a quitté la table.` });
                 });
             }}
           >
@@ -191,7 +199,7 @@ function Editor({
               >
                 {task.busy ? "…" : "Enregistrer"}
               </button>
-              <button className="btn btn-sm" disabled={task.busy}>
+              <button className="btn btn-sm" data-publish disabled={task.busy}>
                 Publier
               </button>
             </>
@@ -444,7 +452,7 @@ function Invites({ id, title }: { id: string; title: string }) {
     text: string;
   }>();
   const [copied, setCopied] = useState(false);
-  // After a revoke the focused button is gone: hand focus to « Créer le lien ».
+  // After a revoke the focused button is gone: hand focus to « Créer le lien ».
   const revoked = useRef(false);
   const createLink = useRef<HTMLButtonElement>(null);
   const canShare = useCanShare();
@@ -822,6 +830,7 @@ export function DeleteList({
         aria-describedby="supprimer-texte"
         onClose={() => {
           setTyped("");
+          task.setMessage("");
           opener.current?.focus();
         }}
       >
@@ -837,7 +846,7 @@ export function DeleteList({
               );
               const photos = r.removedPhotos ?? 0;
               toast({
-                text: `« ${title} » est supprimée${photos ? `, avec ses ${photos} photo${photos > 1 ? "s" : ""}` : ""}.`,
+                text: `« ${title} » est supprimée${photos ? `, avec ses ${photos} photo${photos > 1 ? "s" : ""}` : ""}.`,
               });
               forgetList(id);
               dialog.current?.close();
@@ -852,8 +861,11 @@ export function DeleteList({
           >
             <IconX size={28} />
           </span>
-          <h2 id="supprimer-titre" className="mt-4 text-[28px] font-extrabold">
-            Supprimer « {title} » ?
+          <h2
+            id="supprimer-titre"
+            className="mt-4 text-[28px] font-extrabold [overflow-wrap:anywhere]"
+          >
+            Supprimer « {title} » ?
           </h2>
           <div id="supprimer-texte" className="mt-2 text-[16px] text-muted">
             <p>
@@ -919,6 +931,15 @@ export function ListDetail({
   );
   // Just published: they glow a moment once they reach the table.
   const [fresh, setFresh] = useState<string[]>([]);
+  const [edits] = useState(() => new Map<string, Changes>());
+  // A published card leaves the drafts: keep keyboard focus nearby.
+  const refocus = () =>
+    setTimeout(() => {
+      const next =
+        document.querySelector<HTMLElement>("[data-publish]") ??
+        document.getElementById("sur-la-table");
+      next?.focus();
+    }, 60);
   useEffect(() => {
     if (data) rememberList(id, { title: data.list.title, role: data.role });
   }, [id, data]);
@@ -949,56 +970,93 @@ export function ListDetail({
 
   // Optimistic: the card moves to the table at once, and goes back to the
   // drafts with a message if the server refuses.
+  /** Saves the edits if any, then publishes; on failure the draft comes back with its text. */
+  async function send(item: Item, changes?: Changes) {
+    let saved = false;
+    try {
+      if (changes) {
+        await request(`/api/items/${item.id}`, "PATCH", changes);
+        saved = true;
+      }
+      await request(`/api/items/${item.id}/publish`, "POST");
+      edits.delete(item.id);
+      return null;
+    } catch (e) {
+      if (changes && !saved) edits.set(item.id, changes);
+      else edits.delete(item.id);
+      return {
+        ...item,
+        ...(saved ? changes : {}),
+        status: "draft" as const,
+        published_at: null,
+        error: (e as Error).message,
+      };
+    }
+  }
+  function rollback(back: (Item & { error: string })[]) {
+    mutate((d) => ({
+      ...d,
+      items: d.items.map((i) => {
+        const b = back.find((x) => x.id === i.id);
+        if (!b) return i;
+        const { error: _error, ...rest } = b;
+        void _error;
+        return rest;
+      }),
+    }));
+  }
+
+  // Optimistic: the card moves to the table at once, and goes back to the
+  // drafts, with what was typed, if the server refuses.
   async function publish(item: Item, changes?: Changes) {
     const name = itemName(changes ?? item);
     setStatus([item.id], "published", changes);
     setFresh((f) => [...f, item.id]);
     buzz();
-    try {
-      if (changes) await request(`/api/items/${item.id}`, "PATCH", changes);
-      await request(`/api/items/${item.id}/publish`, "POST");
-      toast({ text: `« ${name} » est sur la table : la famille peut le voir.` });
-    } catch (e) {
-      mutate((d) => ({
-        ...d,
-        items: d.items.map((i) => (i.id === item.id ? item : i)),
-      }));
+    refocus();
+    const failed = await send(item, changes);
+    if (failed) {
+      rollback([failed]);
       toast({
         tone: "error",
-        text: `${(e as Error).message} « ${name} » reste en brouillon.`,
+        text: `${failed.error} « ${name} » reste en brouillon.`,
       });
-      void refresh();
-    } finally {
-      setTimeout(() => setFresh((f) => f.filter((x) => x !== item.id)), 1600);
-    }
+    } else
+      toast({ text: `« ${name} » est sur la table : la famille peut le voir.` });
+    setTimeout(() => setFresh((f) => f.filter((x) => x !== item.id)), 1600);
   }
 
   const publishing = useTask();
   const publishAll = () =>
     publishing.run(async () => {
-      const batch = drafts;
-      setStatus(
-        batch.map((i) => i.id),
-        "published",
-      );
-      setFresh((f) => [...f, ...batch.map((i) => i.id)]);
+      // Unsaved edits in the draft cards go out with them.
+      const batch = drafts.map((item) => ({ item, changes: edits.get(item.id) }));
+      mutate((d) => ({
+        ...d,
+        items: d.items.map((i) => {
+          const b = batch.find((x) => x.item.id === i.id);
+          return b
+            ? {
+                ...i,
+                ...b.changes,
+                status: "published",
+                published_at: new Date().toISOString(),
+              }
+            : i;
+        }),
+      }));
+      setFresh((f) => [...f, ...batch.map((b) => b.item.id)]);
       buzz();
-      const failed: Item[] = [];
-      for (const item of batch) {
-        try {
-          await request(`/api/items/${item.id}/publish`, "POST");
-        } catch {
-          failed.push(item);
-        }
-      }
+      setTimeout(() => document.getElementById("sur-la-table")?.focus(), 60);
+      const results = await Promise.all(
+        batch.map(({ item, changes }) => send(item, changes)),
+      );
+      const failed = results.filter((r) => r !== null);
       if (failed.length) {
-        mutate((d) => ({
-          ...d,
-          items: d.items.map((i) => failed.find((f) => f.id === i.id) ?? i),
-        }));
+        rollback(failed);
         toast({
           tone: "error",
-          text: `${plural(failed.length, "brouillon n’a", "brouillons n’ont")} pas pu être publiés. Réessayez.`,
+          text: `${plural(failed.length, "brouillon n’a", "brouillons n’ont")} pas pu être publié${failed.length > 1 ? "s" : ""}. Réessayez.`,
         });
       } else
         toast({
@@ -1011,7 +1069,7 @@ export function ListDetail({
     <ListShell
       id={id}
       active="objets"
-      role={data?.role ?? null}
+      role={data?.role ?? (error ? undefined : null)}
       title={data?.list.title}
       subtitle={
         data
@@ -1085,6 +1143,7 @@ export function ListDetail({
                       key={item.id}
                       item={item}
                       refresh={refresh}
+                      edits={edits}
                       publish={(i, c) => void publish(i, c)}
                     />
                   ))}
@@ -1096,7 +1155,11 @@ export function ListDetail({
               className="order-2 lg:order-none lg:col-start-1"
             >
               <SectionHead
-                title={<span id="sur-la-table">Sur la table</span>}
+                title={
+                  <span id="sur-la-table" tabIndex={-1} className="outline-none">
+                    Sur la table
+                  </span>
+                }
                 meta={
                   count
                     ? `${plural(count, "objet publié", "objets publiés")}${toReview ? ` · ${toReview} à relire` : ""}`
@@ -1116,6 +1179,7 @@ export function ListDetail({
                       key={item.id}
                       item={item}
                       refresh={refresh}
+                      edits={edits}
                       fresh={fresh.includes(item.id)}
                     />
                   ))}

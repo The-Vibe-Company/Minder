@@ -14,7 +14,7 @@ const steps = [
   {
     n: "2",
     title: "La famille swipe",
-    text: "À droite, « je le veux ». À gauche, « non merci ». On peut changer d’avis, et retrouver la lampe du bureau en la cherchant.",
+    text: "À droite, « je le veux ». À gauche, « non merci ». On peut changer d’avis, et retrouver la lampe du bureau en la cherchant.",
   },
   {
     n: "3",

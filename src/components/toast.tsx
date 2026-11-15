@@ -1,6 +1,6 @@
 "use client";
 // Toasts: one small message at a time at the bottom of the screen, with an
-// optional action (« Annuler »). The store lives in the module, so a toast
+// optional action (« Annuler »). The store lives in the module, so a toast
 // fired just before a client navigation is still shown on the next page.
 import { useEffect, useRef, useSyncExternalStore } from "react";
 
@@ -19,7 +19,7 @@ const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
 
 export function toast(t: Omit<Toast, "id">) {
-  current = { duration: t.action ? 5000 : 3500, ...t, id: next++ };
+  current = { duration: t.action ? 8000 : 4000, ...t, id: next++ };
   emit();
   return current.id;
 }
@@ -45,7 +45,7 @@ export function Toaster() {
     let left = t.duration ?? 3500;
     let started = Date.now();
     let timer = setTimeout(() => dismissToast(t.id), left);
-    // Hovering or focusing the toast stops the clock, so « Annuler » stays reachable.
+    // Hovering or focusing the toast stops the clock, so « Annuler » stays reachable.
     const pause = () => {
       if (paused.current) return;
       paused.current = true;
@@ -81,7 +81,6 @@ export function Toaster() {
         <div
           id="toast"
           key={t.id}
-          role={t.tone === "error" ? "alert" : "status"}
           className={`toast-in pointer-events-auto flex max-w-[440px] min-w-0 items-center gap-3 rounded-[18px] py-2 pr-2 pl-4 text-[15px] font-semibold shadow-[0_14px_30px_-12px_rgba(18,26,58,.6)] ${
             t.tone === "error" ? "bg-alert text-white" : "bg-ink text-enamel"
           }`}

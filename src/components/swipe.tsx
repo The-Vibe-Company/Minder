@@ -27,7 +27,7 @@ export function Swipe({ id }: { id: string }) {
   const [message, setMessage] = useState("");
   const [count, setCount] = useState({ yes: 0, no: 0 });
   const [drag, setDrag] = useState({ x: 0, y: 0, active: false, leaving: 0 });
-  // After « Annuler », the card comes back from the side it left by.
+  // After « Annuler », the card comes back from the side it left by.
   const [back, setBack] = useState<{ id: string; from: number } | null>(null);
   const [pop, setPop] = useState(0);
   const start = useRef<{ x: number; y: number; t: number } | null>(null);
@@ -336,7 +336,7 @@ export function Swipe({ id }: { id: string }) {
         <Notice tone="error">{message}</Notice>
         {last && item && (
           <p role="status" className="mt-3 text-center text-[14px] text-muted">
-            Dernier choix : « {itemName(last.item)} »,{" "}
+            Dernier choix : « {itemName(last.item)} »,{" "}
             {last.choice === "yes" ? "je le veux" : "non merci"}.
           </p>
         )}

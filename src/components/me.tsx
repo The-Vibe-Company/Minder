@@ -44,6 +44,8 @@ function load() {
     })
     .catch(() => {
       me = null;
+      // Signed out or a network hiccup: let the next page view ask again.
+      loading = null;
     })
     .finally(() => listeners.forEach((l) => l()));
   return loading;
@@ -139,6 +141,8 @@ export function UserNav() {
             onClick={() =>
               void logout.run(async () => {
                 await request("/api/auth/logout", "POST");
+                me = null;
+                loading = null;
                 router.push("/");
                 router.refresh();
               })

@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     template: "%s · Minder",
   },
   description:
-    "La maison est vendue : Muriel photographie les objets, la famille dit « je le veux » ou « non merci », et chacun repart avec ce qui compte.",
+    "La maison est vendue : Muriel photographie les objets, la famille dit « je le veux » ou « non merci », et chacun repart avec ce qui compte.",
   openGraph: {
     title: "Minder — on se partage les objets de la maison",
     description:

@@ -64,13 +64,13 @@ export function Search({ id }: { id: string }) {
             <>
               <h2 className="text-[20px] font-bold">
                 {results.items.length
-                  ? `${results.items.length} objet${results.items.length > 1 ? "s" : ""} pour « ${results.q} »`
-                  : `Rien pour « ${results.q} »`}
+                  ? `${results.items.length} objet${results.items.length > 1 ? "s" : ""} pour « ${results.q} »`
+                  : `Rien pour « ${results.q} »`}
               </h2>
               {results.items.length === 0 && (
                 <p className="mt-1 text-muted">
                   Essayez un mot plus court : « lampe » plutôt que « lampe de
-                  chevet ».
+                  chevet ».
                 </p>
               )}
               <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">

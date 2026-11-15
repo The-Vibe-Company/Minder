@@ -60,12 +60,12 @@ export function Invite({ token }: { token: string }) {
   const router = useRouter();
   const field = useRef<HTMLInputElement>(null);
   const [sentTo, setSentTo] = useState<string>();
-  // The session can end between loading the page and clicking « Rejoindre ».
+  // The session can end between loading the page and clicking « Rejoindre ».
   const [signedOut, setSignedOut] = useState(false);
   const sentHeading = useRef<HTMLHeadingElement>(null);
   const asked = useRef(false);
-  // Keep keyboard focus on what just appeared: the « check your email »
-  // heading after sending, the email field after « Changer d’adresse ».
+  // Keep keyboard focus on what just appeared: the « check your email »
+  // heading after sending, the email field after « Changer d’adresse ».
   useEffect(() => {
     if (sentTo) {
       asked.current = true;

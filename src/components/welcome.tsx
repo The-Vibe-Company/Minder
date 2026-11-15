@@ -110,7 +110,7 @@ export function Welcome({ next, change = false }: { next: string; change?: boole
             id="prenom-aide"
             className={`mt-2 text-[14px] ${shown ? "font-semibold text-alert" : "text-muted"}`}
           >
-            {shown || "Un surnom de famille marche aussi : « Mamie Jeanne », « Tonton Jo »."}
+            {shown || "Un surnom de famille marche aussi : « Mamie Jeanne », « Tonton Jo »."}
           </p>
           <button
             className="btn btn-block mt-5 min-h-14 text-[17px]"

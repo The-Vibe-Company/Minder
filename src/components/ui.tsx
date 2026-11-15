@@ -267,12 +267,14 @@ export function ListShell({
           </Link>
           <div className="min-w-0 flex-1">
             <p className="truncate font-display text-[22px] font-bold leading-tight lg:text-[26px]">
-              {heading ?? (
-                <span
-                  aria-label="Chargement de la liste"
-                  className="skeleton inline-block h-[22px] w-44 rounded-full bg-white/20 align-middle"
-                />
-              )}
+              {heading ??
+                (role === null ? (
+                  <span className="skeleton inline-block h-[22px] w-44 rounded-full bg-white/20 align-middle">
+                    <span className="sr-only">Chargement de la liste</span>
+                  </span>
+                ) : (
+                  "La liste"
+                ))}
             </p>
             <p className="min-h-[18px] truncate text-[13px] leading-[18px] text-[#d7def5]">
               {subtitle}

@@ -9,6 +9,7 @@ export const SCREENS = {
   recherche: "Rechercher",
   recap: "Récapitulatif",
   invitation: "Invitation",
+  "invitation-connecte": "Invitation, déjà connecté·e",
   "invitation-expiree": "Invitation expirée",
   connexion: "Connexion",
 } as const;

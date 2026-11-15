@@ -220,6 +220,7 @@ function install(screen: Screen) {
           owner_name: "Muriel",
           expired: screen === "invitation-expiree",
         },
+        signedIn: screen === "invitation-connecte",
       });
     }
     if (p === "/api/auth/login") return json({ ok: true });
@@ -290,6 +291,7 @@ export function Preview({ screen }: { screen: Screen | null }) {
     case "recap":
       return <Recap id={LIST_ID} />;
     case "invitation":
+    case "invitation-connecte":
     case "invitation-expiree":
       return (
         <>

@@ -47,17 +47,21 @@ function Table() {
   );
 }
 
-// Signed-in visitors never see this page with a valid link: the server joins
-// them and redirects to the list. What's left is a visitor without a session.
+// The server joins most signed-in visitors and redirects them to the list.
+// Those who still land here (from another site, or after a prefetch) get a
+// one-click join; visitors without a session sign in inline first.
 export function Invite({ token }: { token: string }) {
   const { data, error, refresh } = useResource<{
     invite: { list_title: string; owner_name: string; expired: boolean } | null;
+    signedIn?: boolean;
   }>(`/api/invite/${encodeURIComponent(token)}`);
   const task = useTask();
   const join = useTask();
   const router = useRouter();
   const field = useRef<HTMLInputElement>(null);
   const [sentTo, setSentTo] = useState<string>();
+  // The session can end between loading the page and clicking « Rejoindre ».
+  const [signedOut, setSignedOut] = useState(false);
   const sentHeading = useRef<HTMLHeadingElement>(null);
   const asked = useRef(false);
   // Keep keyboard focus on what just appeared: the « check your email »
@@ -68,10 +72,35 @@ export function Invite({ token }: { token: string }) {
       sentHeading.current?.focus();
     } else if (asked.current) field.current?.focus();
   }, [sentTo]);
+  useEffect(() => {
+    if (signedOut) field.current?.focus();
+  }, [signedOut]);
   const next = `/invite/${token}`;
   const valid = data?.invite && !data.invite.expired;
   const host = data?.invite?.owner_name || "Votre famille";
   const listTitle = data?.invite?.list_title ?? "";
+  const signedIn = data?.signedIn === true && !signedOut;
+  const joinList = () =>
+    join.run(async () => {
+      let r;
+      try {
+        r = await request<{ listId: string }>(
+          `/api/invite/${encodeURIComponent(token)}`,
+          "POST",
+        );
+      } catch (e) {
+        if ((e as Error).message.includes("Connectez")) {
+          setSignedOut(true);
+          join.setMessage(
+            "Votre session a expiré : indiquez votre e-mail pour recevoir un lien.",
+          );
+          return;
+        }
+        throw e;
+      }
+      router.push(`/lists/${r.listId}`);
+      router.refresh();
+    });
   const send = (email: string) =>
     task.run(async () => {
       await request("/api/auth/login", "POST", { email, next });
@@ -141,74 +170,60 @@ export function Invite({ token }: { token: string }) {
               Les objets défilent un par un : vous dites « je le veux » ou « non
               merci ». C’est tout, et c’est déjà beaucoup.
             </p>
-            <form
-              className="mt-7 text-left"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const email = String(
-                  new FormData(e.currentTarget).get("email") || "",
-                ).trim();
-                if (email) void send(email);
-              }}
-            >
-              <label htmlFor="email" className="field-label">
-                Votre e-mail
-              </label>
-              <input
-                ref={field}
-                id="email"
-                className="field"
-                name="email"
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                placeholder="prenom@exemple.fr"
-                aria-describedby="comment"
-                required
-              />
-              <p id="comment" className="mt-2 text-[14px] text-muted">
-                Pas de mot de passe : on vous envoie un lien de connexion.
-                Cliquez dessus et vous arrivez directement dans la liste.
-              </p>
-              <button
-                className="btn btn-block mt-4 min-h-14 text-[17px]"
-                disabled={task.busy}
-              >
-                {task.busy ? "Envoi…" : "Recevoir mon lien et rejoindre"}
-              </button>
-            </form>
-            <Notice tone="error">{task.message}</Notice>
-            <p className="mt-4 text-[14px] text-muted">
-              Déjà connecté·e sur cet appareil ?{" "}
-              <button
-                className="min-h-11 font-bold text-cobalt underline underline-offset-4"
-                disabled={join.busy}
-                onClick={() =>
-                  void join.run(async () => {
-                    let r;
-                    try {
-                      r = await request<{ listId: string }>(
-                        `/api/invite/${encodeURIComponent(token)}`,
-                        "POST",
-                      );
-                    } catch (e) {
-                      if ((e as Error).message.includes("Connectez")) {
-                        join.setMessage(
-                          "Vous n’êtes pas connecté·e : indiquez votre e-mail ci-dessus.",
-                        );
-                        field.current?.focus();
-                        return;
-                      }
-                      throw e;
-                    }
-                    router.push(`/lists/${r.listId}`);
-                    router.refresh();
-                  })
-                }
-              >
-                {join.busy ? "Un instant…" : "Rejoindre la liste"}
-              </button>
-            </p>
+            {signedIn ? (
+              <>
+                <button
+                  className="btn btn-block mt-7 min-h-14 py-3 text-[17px] whitespace-normal! [overflow-wrap:anywhere]"
+                  disabled={join.busy}
+                  onClick={() => void joinList()}
+                >
+                  {join.busy ? "Un instant…" : `Rejoindre « ${listTitle} »`}
+                </button>
+                <p className="mt-3 text-[14px] text-muted">
+                  Vous êtes déjà connecté·e : un clic et vous êtes à table.
+                </p>
+              </>
+            ) : (
+              <>
+                <form
+                  className="mt-7 text-left"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const email = String(
+                      new FormData(e.currentTarget).get("email") || "",
+                    ).trim();
+                    if (email) void send(email);
+                  }}
+                >
+                  <label htmlFor="email" className="field-label">
+                    Votre e-mail
+                  </label>
+                  <input
+                    ref={field}
+                    id="email"
+                    className="field"
+                    name="email"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    placeholder="prenom@exemple.fr"
+                    aria-describedby="comment"
+                    required
+                  />
+                  <p id="comment" className="mt-2 text-[14px] text-muted">
+                    Pas de mot de passe : on vous envoie un lien de connexion.
+                    Cliquez dessus et vous arrivez directement dans la liste.
+                  </p>
+                  <button
+                    className="btn btn-block mt-4 min-h-14 text-[17px]"
+                    disabled={task.busy}
+                  >
+                    {task.busy ? "Envoi…" : "Recevoir mon lien et rejoindre"}
+                  </button>
+                </form>
+                <Notice tone="error">{task.message}</Notice>
+              </>
+            )}
             <Notice tone="error">{join.message}</Notice>
           </>
         )}

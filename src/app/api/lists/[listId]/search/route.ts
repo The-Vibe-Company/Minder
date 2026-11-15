@@ -1,6 +1,55 @@
-import {NextResponse} from 'next/server';
-import {z} from 'zod';
-import {route,session,check,membership,signed} from '@/lib/api';
-import {embed,rrf} from '@/lib/ai';
-export const maxDuration=120;
-export const GET=route(async(request,ctx)=>{const {listId}=await ctx.params;const {db,user}=await session();await membership(db,listId,user.id);const params=new URL(request.url).searchParams;const q=z.string().trim().min(1).max(500).parse(params.get('q'));const mode=z.enum(['text','semantic','hybrid']).parse(params.get('mode')??'hybrid');const text=await db.rpc('search_items_text',{p_list_id:listId,p_query:q,p_limit:50});check(text.error);if(mode==='text')return NextResponse.json({items:await signed(db,text.data??[]),semanticAvailable:false});const vector=await embed(q,'query');if(!vector)return NextResponse.json({items:await signed(db,text.data??[]),semanticAvailable:false});const semantic=await db.rpc('match_items',{p_list_id:listId,p_query_embedding:vector,p_limit:50});if(semantic.error)return NextResponse.json({items:await signed(db,text.data??[]),semanticAvailable:false});const items=mode==='semantic'?(semantic.data??[]):rrf<{id:string;list_id:string;photo_path:string;description:string|null}>([text.data??[],semantic.data??[]]);return NextResponse.json({items:await signed(db,items),semanticAvailable:true});});
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { route, session, check, membership, signed } from "@/lib/api";
+import { embed, rrf } from "@/lib/ai";
+export const maxDuration = 120;
+export const GET = route(async (request, ctx) => {
+  const { listId } = await ctx.params;
+  const { db, user } = await session();
+  await membership(db, listId, user.id);
+  const params = new URL(request.url).searchParams;
+  const q = z.string().trim().min(1).max(500).parse(params.get("q"));
+  const mode = z
+    .enum(["text", "semantic", "hybrid"])
+    .parse(params.get("mode") ?? "hybrid");
+  const text = await db.rpc("search_items_text", {
+    p_list_id: listId,
+    p_query: q,
+    p_limit: 50,
+  });
+  check(text.error);
+  if (mode === "text")
+    return NextResponse.json({
+      items: await signed(db, text.data ?? []),
+      semanticAvailable: false,
+    });
+  const vector = await embed(q, "query");
+  if (!vector)
+    return NextResponse.json({
+      items: await signed(db, text.data ?? []),
+      semanticAvailable: false,
+    });
+  const semantic = await db.rpc("match_items", {
+    p_list_id: listId,
+    p_query_embedding: vector,
+    p_limit: 50,
+  });
+  if (semantic.error)
+    return NextResponse.json({
+      items: await signed(db, text.data ?? []),
+      semanticAvailable: false,
+    });
+  const items =
+    mode === "semantic"
+      ? (semantic.data ?? [])
+      : rrf<{
+          id: string;
+          list_id: string;
+          photo_path: string;
+          description: string | null;
+        }>([text.data ?? [], semantic.data ?? []]);
+  return NextResponse.json({
+    items: await signed(db, items),
+    semanticAvailable: true,
+  });
+});

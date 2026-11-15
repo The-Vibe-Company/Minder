@@ -1,1 +1,11 @@
-export function GET(){return Response.json({ok:true,supabase:Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL&&process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY),openai:Boolean(process.env.OPENAI_API_KEY),embeddings:Boolean(process.env.EMBED_URL&&process.env.EMBED_API_KEY)});}
+export function GET() {
+  return Response.json({
+    ok: true,
+    supabase: Boolean(
+      process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    ),
+    openai: Boolean(process.env.OPENAI_API_KEY),
+    embeddings: Boolean(process.env.EMBED_URL && process.env.EMBED_API_KEY),
+  });
+}

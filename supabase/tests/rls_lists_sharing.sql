@@ -173,6 +173,7 @@ begin
 
   -- cleanup
   perform set_config('role','postgres',true);
+  perform set_config('storage.allow_delete_query', 'true', true); -- fake rows only, no stored file
   delete from storage.objects where bucket_id='item-photos' and name in (l::text||'/test.jpg','not-a-uuid/rls-test.jpg');
   delete from public.lists where owner_id in (ua,ub,uc,ud,ue,uf);
   delete from auth.users where id in (ua,ub,uc,ud,ue,uf);
